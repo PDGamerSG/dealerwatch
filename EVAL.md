@@ -1,6 +1,6 @@
 # DealerWatch evaluation
 
-Generated 2026-10-29T10:12:27 on `data/generated` (synthetic, seed-labelled). LLM: mock (20 calls, 0 fallbacks); ASR: replay.
+Generated 2026-10-29T10:19:18 on `data/generated` (synthetic, seed-labelled). LLM: mock (20 calls, 0 fallbacks); ASR: replay.
 
 Population: 13 (order, account) pairs = 13 detector candidates plus 0 planted pairs without a candidate; 13 planted. Background candidates count as negatives. Baseline: escalate iff sandwich score >= 0.5.
 
@@ -31,5 +31,5 @@ Population: 13 (order, account) pairs = 13 detector candidates plus 0 planted pa
 | Non-planted candidates | 0 |
 | False alarms: DealerWatch ESCALATE / REVIEW | 0 / 0 |
 | False alarms: baseline ESCALATE | 0 |
-| Case latency p50 / p95 / max (ms) | 12 / 15 / 15 |
-| Pipeline total (ms) | 368 |
+| Case latency p50 / p95 / max (ms) | 15 / 25 / 25 |
+| Pipeline total (ms) | 410 |

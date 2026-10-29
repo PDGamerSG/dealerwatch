@@ -90,8 +90,11 @@ def test_full_chain_escalates_with_evidence_ids() -> None:
     ({"call": "smalltalk"}, {"leak_cue"}, Recommendation.REVIEW),              # CALL_NO_CUE
     ({"call": "other"}, {"leak_cue"}, Recommendation.REVIEW),                  # cue names another scrip
     ({"call_time": "2026-09-03T10:40:00"}, {"call_in_window", "leak_cue"}, Recommendation.REVIEW),
-    ({"path": False, "call": None}, {"link_path", "call_in_window", "leak_cue"}, Recommendation.DISMISS),
-    ({"path": False, "call": "smalltalk"}, {"link_path", "leak_cue"}, Recommendation.DISMISS),
+    # unlinked, no cue: a large (>= INR 20 lakh) sandwich still goes to REVIEW, a small single one is dismissed
+    ({"path": False, "call": None}, {"link_path", "call_in_window", "leak_cue"}, Recommendation.REVIEW),
+    ({"path": False, "call": "smalltalk"}, {"link_path", "leak_cue"}, Recommendation.REVIEW),
+    ({"path": False, "call": None, "pre_qty": 300}, {"link_path", "call_in_window", "leak_cue", "pattern"},
+     Recommendation.DISMISS),
     ({"pre_qty": 300}, {"pattern"}, Recommendation.REVIEW),                    # 1 hit, value < 20 lakh
     ({"clauses": False}, {"clause"}, Recommendation.REVIEW),
     ({"sell_price": 1490.0}, {"profit"}, Recommendation.DISMISS),              # loss: core link fails
@@ -108,7 +111,8 @@ def test_recommend_all_combinations(oks: tuple[bool, ...]) -> None:
     flags = dict(zip(CHAIN_KEYS, oks))
     if all(oks):
         expected = Recommendation.ESCALATE
-    elif all(flags[k] for k in ("order", "pre_trade", "post_trade", "profit")) and (flags["link_path"] or flags["leak_cue"]):
+    elif all(flags[k] for k in ("order", "pre_trade", "post_trade", "profit")) and (
+            flags["link_path"] or flags["leak_cue"] or flags["pattern"]):
         expected = Recommendation.REVIEW
     else:
         expected = Recommendation.DISMISS

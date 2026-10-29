@@ -13,6 +13,7 @@ from dealerwatch.models import (Call, Candidate, ChainLink, Clause, FundOrder, L
 CHAIN_KEYS = ("order", "pre_trade", "post_trade", "profit", "pattern",
               "link_path", "call_in_window", "leak_cue", "clause")
 CORE_KEYS = ("order", "pre_trade", "post_trade", "profit")
+REVIEW_ANY_KEYS = ("link_path", "leak_cue", "pattern")
 QUOTE_DETAIL_CHARS = 100
 
 
@@ -198,10 +199,10 @@ def build_chain(candidate: Candidate, order: FundOrder, trades: Mapping[str, Tra
 
 
 def recommend(chain: list[ChainLink]) -> Recommendation:
-    """ESCALATE iff all 9 ok; REVIEW if core ok and (link_path or leak_cue); else DISMISS."""
+    """ESCALATE iff all 9 ok; REVIEW if core ok and (link_path or leak_cue or pattern); else DISMISS."""
     ok = {link.key: link.ok for link in chain}
     if tuple(link.key for link in chain) == CHAIN_KEYS and all(ok.values()):
         return Recommendation.ESCALATE
-    if all(ok.get(k, False) for k in CORE_KEYS) and (ok.get("link_path") or ok.get("leak_cue")):
+    if all(ok.get(k, False) for k in CORE_KEYS) and any(ok.get(k) for k in REVIEW_ANY_KEYS):
         return Recommendation.REVIEW
     return Recommendation.DISMISS

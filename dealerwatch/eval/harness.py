@@ -21,7 +21,8 @@ from dealerwatch.models import Recommendation
 from dealerwatch.pipeline import run
 from dealerwatch.store import Store
 
-LABELS = ("TRUE_FR", "INJECTION_FR", "LINKED_NO_CALL", "CALL_NO_CUE", "COINCIDENCE")
+# Display order for known labels; any other label in truth.json is reported after these.
+LABELS = ("TRUE_FR", "INJECTION_FR", "LINKED_NO_CALL", "CALL_NO_CUE", "UNLINKED_PATTERN", "COINCIDENCE")
 RECS = tuple(r.value for r in Recommendation)
 
 

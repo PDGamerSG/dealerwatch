@@ -19,7 +19,7 @@ from dealerwatch.pipeline import run
 from dealerwatch.store import Store
 
 EXPECTED = {"TRUE_FR": "ESCALATE", "INJECTION_FR": "ESCALATE", "LINKED_NO_CALL": "REVIEW",
-            "CALL_NO_CUE": "REVIEW", "COINCIDENCE": "DISMISS"}
+            "CALL_NO_CUE": "REVIEW", "UNLINKED_PATTERN": "REVIEW", "COINCIDENCE": "DISMISS"}
 MIN_PLANTED = {"TRUE_FR": 5, "COINCIDENCE": 3, "LINKED_NO_CALL": 2, "CALL_NO_CUE": 2, "INJECTION_FR": 1}
 STEPS = ("run.start", "detect.candidates", "link.path", "gather.calls", "extract.cues", "verify.chain",
          "case.created", "run.end")
@@ -61,7 +61,8 @@ def test_planted_cases_get_expected_recommendation(universe_dir: Path, pipeline_
     for t in load_universe(universe_dir).truth["cases"]:
         case = produced.get((t["order_id"], t["account_id"]))
         got = case.recommendation.value if case else "DISMISS (no candidate)"
-        if got != EXPECTED[t["label"]] or t["expected"] != EXPECTED[t["label"]]:
+        want = EXPECTED.get(t["label"], t["expected"])   # unknown labels: trust truth.json
+        if got != want or t["expected"] != want:
             failed = [lk.key for lk in case.chain if not lk.ok] if case else []
             wrong.append((t["label"], t["order_id"], t["account_id"], t["expected"], got, failed))
     assert not wrong, wrong

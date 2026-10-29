@@ -8,7 +8,7 @@ Catch front-running in a mutual fund house (AMC). A dealer learns of a large fun
 2. **Gather (agent tools, read-only):** calls by the order's dealer in the lookback window whose counterparty number is in the account's link network; ASR (replay transcripts, or Sarvam when a key exists).
 3. **Extract (LLM with deterministic fallback):** leak cues from those calls, each cue grounded to utterance ids; cues citing missing ids or quotes not present in the utterance text are dropped.
 4. **Link (code):** networkx graph from `Link`s; shortest path dealer -> account.
-5. **Verify (code):** 9-link evidence chain (`ChainLink.key` order below). Recommendation: ESCALATE iff all 9 ok; REVIEW if order+pre+post+profit ok and (link_path ok or leak_cue ok); else DISMISS.
+5. **Verify (code):** 9-link evidence chain (`ChainLink.key` order below). Recommendation: ESCALATE iff all 9 ok; REVIEW if order+pre+post+profit ok and (link_path ok or leak_cue ok or pattern ok); else DISMISS. (Revised 29 Oct: a repeated or large unlinked sandwich goes to REVIEW, never auto-dismissed.)
 6. **Narrate (LLM with template fallback):** summary citing evidence ids; `toolkit.grounding` rejects any citation not in the evidence and any number not present in the evidence; on reject, use template.
 7. **Human decision:** reviewer actions change status; nothing is auto-escalated.
 8. **Ledger:** every pipeline step and every human decision is appended to a hash-chained ledger.

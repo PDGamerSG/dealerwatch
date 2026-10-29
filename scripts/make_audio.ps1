@@ -26,8 +26,10 @@ if ($Manifest) {
         [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono)
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $installed = @($synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name })
+    # Assign first: in Windows PowerShell 5.1 ConvertFrom-Json emits a JSON array as one pipeline object.
+    $items = Get-Content -Raw -Encoding UTF8 $Manifest | ConvertFrom-Json
     try {
-        foreach ($item in @(Get-Content -Raw -Encoding UTF8 $Manifest | ConvertFrom-Json)) {
+        foreach ($item in $items) {
             $voice = $installed | Where-Object { $_ -like "$($item.voice)*" } | Select-Object -First 1
             if ($voice) {
                 $synth.SelectVoice($voice)
