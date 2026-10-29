@@ -107,6 +107,22 @@ class RequestLimits:
 
     def __init__(self, app, max_bytes: int = 32 * 1024 * 1024):
         self.app, self.max_bytes = app, max_bytes
+        self.public_origins = set()
+        for value in os.environ.get("DW_PUBLIC_ORIGINS", "").split(","):
+            value = value.strip()
+            if not value:
+                continue
+            try:
+                parsed = urlsplit(value)
+                valid = (parsed.scheme == "https" and parsed.hostname and parsed.port in (None, 443)
+                         and parsed.username is None and parsed.password is None and not parsed.query
+                         and not parsed.fragment and parsed.path in ("", "/")
+                         and not any(char in value for char in ("*", "\\", " ", "\r", "\n", "\t", "?", "#")))
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("DW_PUBLIC_ORIGINS must contain exact HTTPS origins without paths or wildcards")
+            self.public_origins.add((parsed.scheme, parsed.hostname, parsed.port or 443))
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -128,9 +144,15 @@ class RequestLimits:
         if scope["method"] not in {"GET", "HEAD", "OPTIONS"} or scope.get("path") == "/api/eval":
             origin = headers.get("origin")
             if origin:
-                parsed = urlsplit(origin)
+                try:
+                    parsed = urlsplit(origin)
+                    public_origin = (parsed.scheme, parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80))
+                except ValueError:
+                    return await reject(403, "Invalid request origin")
                 expected = (scope.get("scheme", "http"), headers.get("host", ""))
-                if (parsed.scheme, parsed.netloc) != expected or parsed.path not in ("", "/"):
+                allowed = (parsed.scheme, parsed.netloc) == expected or public_origin in self.public_origins
+                if (not allowed or parsed.path not in ("", "/") or "?" in origin or "#" in origin
+                        or parsed.username is not None or parsed.password is not None):
                     return await reject(403, "Cross-origin mutations are not allowed")
             if headers.get("sec-fetch-site") == "cross-site":
                 return await reject(403, "Cross-site mutations are not allowed")

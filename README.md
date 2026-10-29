@@ -125,3 +125,7 @@ python3 scripts/check_container.py
 The check uses its own temporary container and volume, then removes both. See the [recorded result](docs/validation/container-smoke.json).
 
 See [architecture](ARCHITECTURE.md), [API and data contracts](docs/API.md), [current handoff](HANDOFF.md), and the original [rehearsal contract](CONTRACT.md). The original hackathon preparation and day-of rebuild notes remain in the repository.
+
+## Hosted deployment
+
+The [Vercel and AWS deployment guide](docs/DEPLOYMENT.md) describes the frontend proxy and a persistent single-worker backend. The repository includes Vercel build configuration, AWS container/HTTPS configuration, and reusable live HTTP/browser checks. Vercel functions must not host the SQLite runtime on temporary disk.

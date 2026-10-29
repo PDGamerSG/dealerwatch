@@ -65,3 +65,11 @@ The built Linux ARM64 image ran as UID 10001 with all capabilities dropped and a
 ## Operation left available
 
 Start the application with `uv run --frozen python -m dealerwatch` at http://127.0.0.1:8077. Default startup keeps destructive demo controls off unless `--demo` or `DW_DEMO=1` is supplied. The release repository is [PDGamerSG/dealerwatch](https://github.com/PDGamerSG/dealerwatch) (private); the original rehearsal Git history is retained. No hosted deployment is included.
+
+## Vercel/AWS deployment preparation
+
+The deployment changes passed **799 Python/browser tests**, two Node build-output tests, Ruff, JavaScript syntax and diff checks. Vercel CLI 65.8.0 completed a local build using an example HTTPS backend origin; no deployment was published with that example. The package inspection confirmed that local environment files, runtime databases and generated data were excluded. A new Linux ARM64 image passed real HTTP review, rerun, export, audit and restart-persistence checks.
+
+The AWS Compose configuration passed validation for persistent host mounts, nonroot backend, one replica and secure cookies. Caddy 2.11.7 adapted the public-IP ACME configuration with networking disabled; no certificate was issued. The read-only checker passed all 12 checks against a separate authenticated local HTTP server, and both browser workflows passed in remote-target mode against that server.
+
+The Vercel `dealerwatch` project is linked. Live AWS provisioning, public TLS issuance, Vercel proxying, and live end-to-end verification are pending AWS CLI reauthentication: the existing login session expired. Local verification does not establish those live results. See [deployment instructions](DEPLOYMENT.md).

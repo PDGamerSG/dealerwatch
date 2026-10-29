@@ -1,0 +1,18 @@
+{
+	# IP clients may omit SNI; AWS maps the public IP to a private interface.
+	default_sni {$PUBLIC_IP}
+}
+
+https://{$PUBLIC_IP} {
+	tls {
+		# Explicit ACME avoids Caddy's default self-signed certificate for IPs.
+		# Let's Encrypt IP certificates last 160 hours; keep /data persistent.
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+			disable_tlsalpn_challenge
+		}
+	}
+
+	reverse_proxy dealerwatch:8077
+}

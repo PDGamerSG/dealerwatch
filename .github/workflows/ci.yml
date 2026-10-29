@@ -31,6 +31,7 @@ jobs:
           python-version: "3.12"
       - run: uv sync --frozen
       - run: node --check dealerwatch/web/app.js
+      - run: node --test scripts/test_vercel_build.mjs
       - run: uv run playwright install --with-deps chromium
       - run: uv run pytest -m browser -q
       - uses: actions/upload-artifact@v4

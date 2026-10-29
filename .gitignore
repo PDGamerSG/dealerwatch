@@ -12,3 +12,4 @@ runtime/
 test-results/
 .coverage
 htmlcov/
+.vercel/
