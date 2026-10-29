@@ -1,429 +1,300 @@
-"""FastAPI app for DealerWatch: alert queue, case detail, human decisions, ledger and eval.
+"""DealerWatch HTTP API and its basic same-origin frontend.
 
-Run with ``python -m uvicorn dealerwatch.api:app --port 8077``. Env ``DW_DATA`` (default
-``data/generated``) and ``DW_RUNTIME`` (default ``runtime``) choose the data and runtime dirs.
-No CORS middleware is installed: the UI is served from the same origin.
+Run ``python -m uvicorn dealerwatch.api:app --host 127.0.0.1 --port 8077``.
+Use one application worker per runtime directory; investigations have a bounded background worker.
 """
 from __future__ import annotations
 
-import bisect
-import csv
-import dataclasses
-import json
 import logging
 import os
-import re
-import threading
-from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, AsyncIterator, Iterator, Literal, Optional
+from collections import Counter
+from contextlib import asynccontextmanager
+from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from dealerwatch import config, pipeline
+from dealerwatch.datasets import DatasetValidationError, read_bundle, validate_bundle
 from dealerwatch.decisions import apply_decision
-from dealerwatch.detect.links import normalize_phone
-from dealerwatch.eval.harness import evaluate
-from dealerwatch.io import load_universe
-from dealerwatch.models import Case, CaseStatus, Recommendation, RunStats
-from dealerwatch.store import Store
-from toolkit.ledger import Ledger
+from dealerwatch.exports import csv_export, evidence_export
+from dealerwatch.jobs import BusyError
+from dealerwatch.models import Case, CaseStatus, Recommendation
+from dealerwatch.security import COOKIE, SESSION_SECONDS, RequestLimits, Security
+from dealerwatch.services import CSP, WEB_DIR, Services, _resolve, _summary
 
-log = logging.getLogger("dealerwatch.api")
-
-ROOT = Path(__file__).resolve().parent.parent
-WEB_DIR = Path(__file__).resolve().parent / "web"
-CALL_ID_RE = re.compile(r"^C-\d{3}$")
-PHONE_RE = re.compile(r"^\+?[\d\s-]{10,16}$")
-PRICE_WINDOW = timedelta(minutes=120)
-REC_RANK = {Recommendation.ESCALATE: 0, Recommendation.REVIEW: 1, Recommendation.DISMISS: 2}
-CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
-    "media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; "
-    "frame-ancestors 'none'; form-action 'self'"
-)
+log = logging.getLogger(__name__)
 
 
 class DecisionIn(BaseModel):
-    """Body of POST /api/cases/{case_id}/decision."""
     action: Literal["approve_escalation", "request_info", "dismiss", "start_review"]
-    reviewer: str = Field(min_length=1, max_length=80)
+    reviewer: str = Field(default="", max_length=80)
     note: str = Field(default="", max_length=2000)
+    expected_revision: int | None = Field(default=None, ge=0)
 
 
 class TamperIn(BaseModel):
-    """Body of POST /api/ledger/tamper-demo."""
-    seq: int = Field(ge=0)
+    seq: int = Field(ge=1)
 
 
-def _get(obj: Any, key: str, default: Any = None) -> Any:
-    """Attribute or key lookup, so universe items may be models, dataclasses or dicts."""
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
+class SessionIn(BaseModel):
+    token: str = Field(min_length=1, max_length=1024, repr=False)
 
 
-def _dump(obj: Any) -> Any:
-    """JSON-ready form of a pydantic model, dataclass or plain dict."""
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump(mode="json")
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return dataclasses.asdict(obj)
-    return obj
-
-
-def _index(items: Any, key: str) -> dict[str, Any]:
-    """Map id -> item for a list (or pass a dict through)."""
-    if isinstance(items, dict):
-        return {str(k): v for k, v in items.items()}
-    return {str(_get(it, key)): it for it in (items or [])}
-
-
-def _resolve(explicit: str | os.PathLike[str] | None, env: str, default: str) -> Path:
-    """Explicit arg, else env var (relative to cwd), else default relative to the project root."""
-    if explicit is not None:
-        return Path(explicit).resolve()
-    value = os.environ.get(env)
-    return Path(value).resolve() if value else (ROOT / default).resolve()
-
-
-def _load_prices(path: Path) -> dict[str, tuple[list[str], list[float]]]:
-    """Read prices.csv into scrip -> (sorted ISO times, closes)."""
-    rows: dict[str, list[tuple[str, float]]] = {}
-    with path.open(newline="", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            rows.setdefault(row["scrip"], []).append((row["time"].replace(" ", "T"), float(row["close"])))
-    series: dict[str, tuple[list[str], list[float]]] = {}
-    for scrip, pts in rows.items():
-        pts.sort()
-        series[scrip] = ([t for t, _ in pts], [c for _, c in pts])
-    return series
-
-
-def _summary(case: Case) -> dict[str, Any]:
-    """Queue row for a case."""
-    return {
-        "case_id": case.case_id,
-        "scrip": case.candidate.scrip,
-        "account_id": case.account.account_id,
-        "holder_name": case.account.holder_name,
-        "dealer_id": case.dealer.dealer_id,
-        "recommendation": case.recommendation.value,
-        "status": case.status.value,
-        "score": case.candidate.score,
-        "profit_inr": case.candidate.profit_inr,
-        "created_at": case.created_at,
-        "order_id": case.order.order_id,
-        "side": case.order.side.value,
-        "order_time": case.order.order_time,
-    }
-
-
-class Services:
-    """Holds paths, caches and the pipeline lock for one app instance."""
-
-    def __init__(self, data_dir: Path, runtime_dir: Path) -> None:
-        self.data_dir = data_dir
-        self.runtime_dir = runtime_dir
-        self.lock = threading.RLock()
-        self._universe_key: Optional[float] = None
-        self._universe: Any = None
-        self._indexes: dict[str, dict[str, Any]] = {}
-        self._prices: Optional[dict[str, tuple[list[str], list[float]]]] = None
-
-    # ----- storage -----
-    def store(self) -> Store:
-        """Case store in the runtime dir (Store opens a connection per operation)."""
-        return Store(self.runtime_dir / config.DB_FILE)
-
-    @contextmanager
-    def ledger(self) -> Iterator[Ledger]:
-        """Hash-chained ledger in the runtime dir, closed after use."""
-        ledger = Ledger(str(self.runtime_dir / config.LEDGER_FILE))
-        try:
-            yield ledger
-        finally:
-            ledger.close()
-
-    def has_data(self) -> bool:
-        """True when a generated universe exists in the data dir."""
-        return (self.data_dir / "orders.json").is_file()
-
-    # ----- pipeline -----
-    def run(self) -> RunStats:
-        """Run the full pipeline (it resets the store and ledger itself)."""
-        if not self.has_data():
-            raise HTTPException(409, f"no data in {self.data_dir.name}; run python -m dealerwatch.data.synth first")
-        with self.lock:
-            stats = pipeline.run(str(self.data_dir), str(self.runtime_dir))
-            self._universe_key = None
-            self._prices = None
-            return stats
-
-    def bootstrap(self) -> None:
-        """Run the pipeline once at startup when the store is empty and data exists."""
-        try:
-            if self.has_data() and not self.store().list_cases():
-                stats = self.run()
-                log.info("startup pipeline run: %s cases", stats.cases)
-        except Exception:  # startup must not crash the server; /api/run reports errors
-            log.exception("startup pipeline run failed")
-
-    # ----- universe lookups -----
-    def universe(self) -> Any:
-        """Cached universe, reloaded when orders.json changes."""
-        key = (self.data_dir / "orders.json").stat().st_mtime
-        with self.lock:
-            if self._universe is None or key != self._universe_key:
-                uni = load_universe(str(self.data_dir))
-                self._indexes = {
-                    "trades": _index(_get(uni, "trades"), "trade_id"),
-                    "calls": _index(_get(uni, "calls"), "call_id"),
-                    "clauses": _index(_get(uni, "clauses"), "clause_id"),
-                    "dealers": _index(_get(uni, "dealers"), "dealer_id"),
-                    "persons": _index(_get(uni, "persons"), "person_id"),
-                    "accounts": _index(_get(uni, "accounts"), "account_id"),
-                }
-                phones: dict[str, str] = {}
-                for name, field, key in (("persons", "name", "person_id"), ("accounts", "holder_name", "account_id")):
-                    for item in self._indexes[name].values():
-                        number = normalize_phone(_get(item, "mobile"))
-                        if number:
-                            phones.setdefault(number, f"{_get(item, field)} ({_get(item, key)})")
-                self._indexes["phones"] = phones
-                self._universe, self._universe_key, self._prices = uni, key, None
-            return self._universe
-
-    def index(self, name: str) -> dict[str, Any]:
-        """Id index over one universe collection."""
-        self.universe()
-        return self._indexes.get(name, {})
-
-    def price_slice(self, scrip: str, order_time: str) -> list[dict[str, Any]]:
-        """Minute closes for scrip within +-120 min of the order time."""
-        with self.lock:
-            if self._prices is None:
-                path = self.data_dir / "prices.csv"
-                self._prices = _load_prices(path) if path.is_file() else {}
-            times, closes = self._prices.get(scrip, ([], []))
-        t0 = datetime.fromisoformat(order_time)
-        lo = bisect.bisect_left(times, (t0 - PRICE_WINDOW).isoformat(timespec="seconds"))
-        hi = bisect.bisect_right(times, (t0 + PRICE_WINDOW).isoformat(timespec="seconds"))
-        return [{"time": times[i], "close": closes[i]} for i in range(lo, hi)]
-
-    def audio_path(self, call_id: str) -> Optional[Path]:
-        """Wav path for a call id, or None if the id is invalid or no file exists."""
-        if not CALL_ID_RE.fullmatch(call_id):
-            return None
-        audio_dir = (self.data_dir / "audio").resolve()
-        path = (audio_dir / f"{call_id}.wav").resolve()
-        return path if path.parent == audio_dir and path.is_file() else None
-
-    def node_label(self, node: str) -> str:
-        """Human label for a link-graph node or transcript speaker."""
-        for name, field in (("dealers", "name"), ("persons", "name"), ("accounts", "holder_name")):
-            item = self.index(name).get(node)
-            if item is not None:
-                label = str(_get(item, field, node))
-                relation = _get(item, "relation") if name == "persons" else None
-                return f"{label} ({relation})" if relation else label
-        if ":" in node:
-            return node.split(":", 1)[1]
-        if PHONE_RE.fullmatch(node):
-            return self.index("phones").get(normalize_phone(node), node)
-        return node
-
-    def case_detail(self, case: Case) -> dict[str, Any]:
-        """Full case plus price slice, sandwich trades, call details, clauses and node labels."""
-        out = case.model_dump(mode="json")
-        trades = self.index("trades")
-        calls = self.index("calls")
-        clauses = self.index("clauses")
-        trade_ids = case.candidate.pre_trade_ids + case.candidate.post_trade_ids
-        out["prices"] = self.price_slice(case.order.scrip, case.order.order_time)
-        out["trades"] = [_dump(trades[t]) for t in trade_ids if t in trades]
-        call_details = []
-        for cid in case.calls:
-            if cid in calls:
-                call = dict(_dump(calls[cid]))
-                call["has_audio"] = self.audio_path(cid) is not None
-                call_details.append(call)
-        out["call_details"] = call_details
-        out["clauses"] = [_dump(clauses[c]) for c in case.clause_ids if c in clauses]
-        nodes = {case.dealer.dealer_id, case.account.account_id}
-        for link in case.link_path:
-            nodes.update((link.src, link.dst))
-        for call in call_details:
-            nodes.add(str(call.get("counterparty_number", "")))
-            nodes.update(str(u.get("speaker", "")) for u in call.get("utterances", []))
-        out["node_labels"] = {n: self.node_label(n) for n in sorted(nodes) if n}
-        return out
-
-    def eval_result(self, refresh: bool) -> dict[str, Any]:
-        """Cached eval dict from runtime/eval.json, running the harness when missing."""
-        path = self.runtime_dir / "eval.json"
-        with self.lock:
-            if path.is_file() and not refresh:
-                return json.loads(path.read_text(encoding="utf-8"))
-            if not self.has_data():
-                raise HTTPException(409, "no data to evaluate; generate the synthetic universe first")
-            eval_dir = self.runtime_dir / "eval"
-            eval_dir.mkdir(parents=True, exist_ok=True)
-            result = evaluate(str(self.data_dir), str(eval_dir))
-            self.runtime_dir.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
-            return json.loads(json.dumps(result, default=str))
-
-
-def _tampered(payload: dict[str, Any]) -> dict[str, Any]:
-    """A plausibly edited payload for the tamper demo (hashes are left untouched)."""
-    edited = dict(payload)
-    if "recommendation" in edited:
-        edited["recommendation"] = "DISMISS"
-    if "profit_inr" in edited:
-        edited["profit_inr"] = 0
-    edited["edited"] = "tamper demo"
-    return edited
-
-
-def create_app(data_dir: str | os.PathLike[str] | None = None,
-               runtime_dir: str | os.PathLike[str] | None = None) -> FastAPI:
-    """Build the FastAPI app for one data dir and runtime dir."""
+def create_app(data_dir: str | os.PathLike | None = None,
+               runtime_dir: str | os.PathLike | None = None) -> FastAPI:
     svc = Services(_resolve(data_dir, "DW_DATA", "data/generated"),
                    _resolve(runtime_dir, "DW_RUNTIME", "runtime"))
+    security = Security()
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(_app):
         await run_in_threadpool(svc.bootstrap)
-        yield
+        try:
+            yield
+        finally:
+            await run_in_threadpool(svc.jobs.close)
 
-    app = FastAPI(title="DealerWatch", docs_url=None, redoc_url=None,
+    app = FastAPI(title="DealerWatch", version="1.0.0", docs_url=None, redoc_url=None,
                   openapi_url="/api/openapi.json", lifespan=lifespan)
-    app.state.svc = svc
+    app.state.svc, app.state.security = svc, security
 
     @app.middleware("http")
-    async def security_headers(request: Request, call_next: Any) -> Any:
-        response = await call_next(request)
-        response.headers["Content-Security-Policy"] = CSP
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["X-Frame-Options"] = "DENY"
-        if not request.url.path.startswith("/audio/"):
-            response.headers["Cache-Control"] = "no-store"
+    async def guard(request: Request, call_next):
+        public = {"/api/health", "/api/ready", "/api/session"}
+        response = None
+        if (request.url.path.startswith("/api/") or request.url.path.startswith("/audio/")) and request.url.path not in public:
+            try:
+                security.require(request)
+            except HTTPException as exc:
+                response = JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
+        if response is None:
+            response = await call_next(request)
+        response.headers.update({"Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff",
+                                 "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
+                                 "Cache-Control": "no-store"})
         return response
 
-    @app.exception_handler(Exception)
-    async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
-        log.exception("unhandled error")
-        return JSONResponse({"detail": f"internal error ({type(exc).__name__})"}, status_code=500)
+    app.add_middleware(RequestLimits, max_bytes=int(os.environ.get("DW_MAX_BODY_BYTES", str(32 * 1024 * 1024))))
 
-    def get_case_or_404(case_id: str) -> Case:
+    @app.exception_handler(DatasetValidationError)
+    async def invalid_data(_request, exc):
+        return JSONResponse({"detail": exc.report}, status_code=422)
+
+    @app.exception_handler(BusyError)
+    async def busy(_request, exc):
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    @app.exception_handler(Exception)
+    async def unhandled(request, exc):
+        request_id = getattr(request.state, "request_id", "unknown")
+        log.error("request %s failed: %s", request_id, type(exc).__name__)
+        return JSONResponse({"detail": f"Internal error ({type(exc).__name__})", "request_id": request_id}, status_code=500)
+
+    def find_case(case_id: str) -> Case:
         case = svc.store().get_case(case_id)
         if case is None:
-            raise HTTPException(404, f"case {case_id} not found")
+            raise HTTPException(404, f"Case {case_id} not found")
         return case
 
+    def demo(request: Request):
+        security.require(request, "admin")
+        if os.environ.get("DW_DEMO", "0") != "1":
+            raise HTTPException(403, "Demo mutations are disabled; enable DW_DEMO=1 explicitly")
+
+    @app.get("/api/session")
+    def session(request: Request):
+        return security.status(request)
+
+    @app.post("/api/session")
+    def login(request: Request, body: SessionIn, response: Response):
+        cookie, principal = security.login(request, body.token)
+        response.set_cookie(COOKIE, cookie, max_age=SESSION_SECONDS, httponly=True, samesite="strict",
+                            secure=request.url.scheme == "https" or os.environ.get("DW_COOKIE_SECURE") == "1")
+        return {"auth_required": security.required, "authenticated": True, "role": principal.role,
+                "reviewer": principal.reviewer, "demo_enabled": os.environ.get("DW_DEMO", "0") == "1"}
+
+    @app.delete("/api/session")
+    def logout(request: Request, response: Response):
+        security.logout(request)
+        response.delete_cookie(COOKIE)
+        return {"ok": True}
+
     @app.get("/api/health")
-    def health() -> dict[str, Any]:
+    def health():
         stats = svc.store().get_stats()
-        return {
-            "ok": True,
-            "llm": stats.llm_provider if stats else os.environ.get("DW_LLM", "mock"),
-            "asr": stats.asr_provider if stats else os.environ.get("DW_ASR", "replay"),
-            "cases": len(svc.store().list_cases()),
-            "has_data": svc.has_data(),
-        }
+        return {"ok": True, "llm": stats.llm_provider if stats else os.environ.get("DW_LLM", "mock"),
+                "asr": stats.asr_provider if stats else os.environ.get("DW_ASR", "replay"),
+                "cases": svc.store().count_cases(), "has_data": svc.has_data(), "version": "1.0.0"}
+
+    @app.get("/api/ready")
+    def ready(response: Response):
+        report = svc.data_report()
+        svc.store().count_cases()
+        if not report["valid"]:
+            response.status_code = 503
+        return {"ready": report["valid"], "data_valid": report["valid"], "database": "ok"}
+
+    @app.get("/api/data")
+    def data_report():
+        return svc.data_report()
+
+    @app.post("/api/data/validate")
+    def validate(request: Request, body: Any = Body(...)):
+        security.require(request, "admin")
+        return validate_bundle(body)
+
+    @app.post("/api/data/import", status_code=201)
+    def import_data(request: Request, body: Any = Body(...)):
+        principal = security.require(request, "admin")
+        with svc.jobs.exclusive():
+            _path, report = svc.registry.import_bundle(body)
+            svc.invalidate()
+            with svc.ledger() as ledger:
+                ledger.append(principal.reviewer or "operator", "data.imported",
+                              {"dataset_id": report["fingerprint"], "counts": report["counts"]})
+        return report
+
+    @app.get("/api/data/export")
+    def export_data():
+        if not svc.has_data():
+            raise HTTPException(404, "No dataset to export")
+        return JSONResponse(read_bundle(svc.data_dir), headers={"Content-Disposition": 'attachment; filename="dealerwatch-dataset.json"'})
 
     @app.post("/api/run")
-    def run() -> dict[str, Any]:
+    def run(request: Request):
+        security.require(request, "admin")
         return svc.run().model_dump(mode="json")
 
+    @app.post("/api/runs", status_code=202)
+    def submit_run(request: Request):
+        security.require(request, "admin")
+        report = svc.data_report()
+        if not report["valid"]:
+            raise DatasetValidationError(report)
+        return svc.jobs.submit()
+
+    @app.get("/api/runs")
+    def runs(limit: int = Query(50, ge=1, le=200)):
+        return svc.jobs.list(limit)
+
+    @app.get("/api/runs/{run_id}")
+    def run_detail(run_id: str):
+        job = svc.jobs.get(run_id)
+        if job is None:
+            raise HTTPException(404, "Run not found")
+        return job
+
     @app.get("/api/stats")
-    def stats() -> Optional[dict[str, Any]]:
+    def stats():
         current = svc.store().get_stats()
         return current.model_dump(mode="json") if current else None
 
+    @app.get("/api/dashboard")
+    def dashboard():
+        cases = svc.store().list_cases()
+        def group(key):
+            result = {}
+            for case in cases:
+                label = key(case)
+                item = result.setdefault(label, {"count": 0, "profit_inr": 0})
+                item["count"] += 1
+                item["profit_inr"] = round(item["profit_inr"] + case.candidate.profit_inr, 2)
+            return result
+        return {"cases": len(cases), "by_recommendation": dict(Counter(c.recommendation.value for c in cases)),
+                "by_status": dict(Counter(c.status.value for c in cases)),
+                "total_profit_inr": round(sum(c.candidate.profit_inr for c in cases), 2),
+                "by_scrip": group(lambda c: c.candidate.scrip), "by_dealer": group(lambda c: c.dealer.dealer_id),
+                "latest_run": next(iter(svc.jobs.list(1)), None)}
+
     @app.get("/api/cases")
-    def list_cases(status: Optional[CaseStatus] = None,
-                   recommendation: Optional[Recommendation] = None) -> list[dict[str, Any]]:
-        cases = [c for c in svc.store().list_cases()
-                 if (status is None or c.status == status)
-                 and (recommendation is None or c.recommendation == recommendation)]
-        cases.sort(key=lambda c: (REC_RANK[c.recommendation], -c.candidate.score, c.case_id))
-        return [_summary(c) for c in cases]
+    def cases(response: Response, status: CaseStatus | None = None, recommendation: Recommendation | None = None,
+              q: str = Query("", max_length=200), scrip: str | None = None, dealer_id: str | None = None,
+              limit: int | None = Query(None, ge=1, le=1000), offset: int = Query(0, ge=0)):
+        rows, count = svc.store().query_cases(status=status, recommendation=recommendation, q=q, scrip=scrip,
+                                             dealer_id=dealer_id, limit=limit, offset=offset)
+        response.headers["X-Total-Count"] = str(count)
+        return [_summary(case) for case in rows]
+
+    @app.get("/api/export/cases.csv")
+    def export_cases(status: CaseStatus | None = None, recommendation: Recommendation | None = None,
+                     q: str = Query("", max_length=200), scrip: str | None = None, dealer_id: str | None = None):
+        rows, _ = svc.store().query_cases(status=status, recommendation=recommendation, q=q, scrip=scrip, dealer_id=dealer_id)
+        return Response(csv_export([_summary(case) for case in rows]), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="dealerwatch-cases.csv"'})
 
     @app.get("/api/cases/{case_id}")
-    def case_detail(case_id: str) -> dict[str, Any]:
-        return svc.case_detail(get_case_or_404(case_id))
+    def case_detail(case_id: str):
+        return svc.case_detail(find_case(case_id))
+
+    @app.get("/api/cases/{case_id}/export")
+    def case_export(case_id: str):
+        detail = svc.case_detail(find_case(case_id))
+        with svc.ledger() as ledger:
+            bundle = evidence_export(detail, ledger.entries(), ledger.verify(), ledger.head())
+        return JSONResponse(bundle, headers={"Content-Disposition": f'attachment; filename="{case_id}-evidence.json"'})
 
     @app.post("/api/cases/{case_id}/decision")
-    def decide(case_id: str, body: DecisionIn) -> dict[str, Any]:
-        get_case_or_404(case_id)
-        reviewer = body.reviewer.strip()
+    def decide(case_id: str, request: Request, body: DecisionIn,
+               idempotency_key: str | None = Header(None, min_length=1, max_length=120)):
+        principal = security.require(request)
+        reviewer = principal.reviewer or body.reviewer.strip()
         if not reviewer:
-            raise HTTPException(422, "reviewer is required")
+            raise HTTPException(422, "Reviewer is required")
         try:
-            with svc.lock, svc.ledger() as ledger:
-                case = apply_decision(svc.store(), ledger, case_id, body.action, reviewer, body.note.strip())
+            with svc.ledger() as ledger:
+                case = apply_decision(svc.store(), ledger, case_id, body.action, reviewer, body.note.strip(),
+                                      expected_revision=body.expected_revision, idempotency_key=idempotency_key)
         except KeyError as exc:
-            raise HTTPException(404, f"case {case_id} not found") from exc
+            raise HTTPException(404, f"Case {case_id} not found") from exc
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
-        return case.model_dump(mode="json")
+        return case.model_dump(mode="json", exclude={"evidence_snapshot"})
 
     @app.get("/api/ledger")
-    def ledger_entries(limit: int = Query(200, ge=1, le=5000),
-                       offset: int = Query(0, ge=0)) -> dict[str, Any]:
-        """Entries oldest first (ascending seq), paged."""
+    def ledger_entries(limit: int = Query(200, ge=1, le=5000), offset: int = Query(0, ge=0)):
         with svc.ledger() as ledger:
-            return {"count": ledger.count(), "head": ledger.head(),
-                    "entries": ledger.entries(limit=limit, offset=offset)}
+            return {"count": ledger.count(), "head": ledger.head(), "entries": ledger.entries(limit, offset)}
 
     @app.get("/api/ledger/verify")
-    def ledger_verify() -> dict[str, Any]:
+    def verify_ledger():
         with svc.ledger() as ledger:
             return ledger.verify()
 
     @app.post("/api/ledger/tamper-demo")
-    def ledger_tamper(body: TamperIn) -> dict[str, Any]:
-        if os.environ.get("DW_DEMO", "1") != "1":
-            raise HTTPException(403, "tamper demo disabled (DW_DEMO=0)")
-        with svc.lock, svc.ledger() as ledger:
-            found = ledger.entries(limit=1, offset=body.seq - 1) if body.seq >= 1 else []
-            if not found or found[0]["seq"] != body.seq:  # seqs are contiguous from 1; scan if not
-                found = [e for e in ledger.entries() if e["seq"] == body.seq]
+    def tamper(request: Request, body: TamperIn):
+        demo(request)
+        with svc.jobs.exclusive(), svc.ledger() as ledger:
+            found = [entry for entry in ledger.entries(1, body.seq - 1) if entry["seq"] == body.seq]
             if not found:
-                raise HTTPException(404, f"ledger seq {body.seq} not found")
-            try:
-                ledger.tamper_for_demo(body.seq, _tampered(found[0]["payload"]))
-            except ValueError as exc:
-                raise HTTPException(404, str(exc)) from exc
+                raise HTTPException(404, "Ledger sequence not found")
+            ledger.tamper_for_demo(body.seq, {**found[0]["payload"], "edited": "tamper demo"})
             return ledger.verify()
 
     @app.post("/api/ledger/restore")
-    def ledger_restore() -> dict[str, Any]:
-        stats = svc.run()
+    def restore(request: Request):
+        demo(request)
+        stats = svc.run(reset=True)
         with svc.ledger() as ledger:
             return {"stats": stats.model_dump(mode="json"), "verify": ledger.verify()}
 
     @app.get("/api/eval")
-    def eval_metrics(refresh: bool = False) -> dict[str, Any]:
+    def evaluation(request: Request, refresh: bool = False):
+        if refresh:
+            security.require(request, "admin")
         return svc.eval_result(refresh)
 
     @app.get("/audio/{call_id}")
-    def audio(call_id: str) -> FileResponse:
-        path = svc.audio_path(call_id)
+    def audio(call_id: str, case_id: str | None = None):
+        path = svc.audio_path(call_id, find_case(case_id) if case_id else None)
         if path is None:
-            raise HTTPException(404, "audio not found")
+            raise HTTPException(404, "Audio not found")
         return FileResponse(path, media_type="audio/wav")
 
     @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
+    def index():
         return FileResponse(WEB_DIR / "index.html", media_type="text/html")
 
     app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")

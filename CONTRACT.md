@@ -1,4 +1,6 @@
-# DealerWatch build contract (shared by all build agents)
+# DealerWatch build contract (historical rehearsal baseline)
+
+**30 October update:** `ARCHITECTURE.md` and `docs/API.md` describe the completed application. Ordinary runs now preserve cases/reviews and append audit events; case IDs are content-derived; imports, jobs, access controls and exports have been added; demo mutations are disabled by default. The original module contract below records the initial build and is superseded where it conflicts with these updates. Detector/verifier rules remain unchanged.
 
 Rehearsal build for Azentio.ai Build Labs (31 Oct 2026). Python 3.12 venv at `.venv` (`.venv/Scripts/python.exe`). Run tests with `.venv/Scripts/python.exe -m pytest -q`. Windows machine; code must also run on Linux. No new dependencies beyond requirements.txt without asking the lead.
 

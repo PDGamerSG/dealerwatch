@@ -1,10 +1,11 @@
-"""Render the synthetic DealerWatch call transcripts to 16 kHz mono WAV with Windows SAPI voices.
+"""Render fictional DealerWatch calls to 16 kHz mono WAV with macOS speech or Windows SAPI.
 
 Usage (from the repo root; scripts/make_audio.ps1 forwards here):
-    .venv/Scripts/python.exe scripts/make_audio.py [--data-dir data/generated] [--all]
+    python scripts/make_audio.py [--data-dir data/generated] [--all]
 
-For each selected calls/C-xxx.json, make_audio.ps1 renders every utterance to its own temporary WAV
-(Microsoft David for dealers D1/D2/D3, Microsoft Zira for everyone else). This script stitches them with
+On Windows, make_audio.ps1 renders utterances with Microsoft David / Microsoft Zira. On macOS,
+say uses Rishi / Veena or Lekha when installed, falling back to available voices; afconvert makes PCM.
+This script stitches the temporary utterances with
 short pauses into audio/C-xxx.wav and rewrites the call JSON with the real utterance offsets
 (start_ms/end_ms), duration_s and audio_file. The JSON is only rewritten when the WAV was created.
 By default it renders the calls inside planted lookback windows (leak, injection, small talk) plus three
@@ -44,8 +45,33 @@ def spoken(text: str) -> str:
     return re.sub(r"\b(" + "|".join(SPOKEN) + r")\b", lambda m: SPOKEN[m.group(1)], text)
 
 
-def voice_for(speaker: str) -> str:
-    return DEALER_VOICE if re.fullmatch(r"D\d+", speaker) else OTHER_VOICE
+def voice_for(speaker: str, voices: tuple[str, str] = (DEALER_VOICE, OTHER_VOICE)) -> str:
+    """Use a distinct voice for the dealer and counterparty when available."""
+    return voices[0] if re.fullmatch(r"D\d+", speaker) else voices[1]
+
+
+def _mac_voices() -> tuple[str, str]:
+    """Prefer Indian voices, then available English/Hindi voices, without downloading any."""
+    result = subprocess.run(["say", "-v", "?"], check=True, capture_output=True, text=True, timeout=30)
+    available = []
+    for line in result.stdout.splitlines():
+        match = re.match(r"^(.+?)\s+([a-z]{2,3}_[A-Za-z0-9_]+)\s+#", line)
+        if match:
+            available.append((match[1].strip(), match[2]))
+    if not available:
+        raise ValueError("macOS say reported no installed voices")
+    names = [name for name, language in available if language.startswith(("en_", "hi_"))]
+    names = names or [name for name, _ in available]
+
+    def preferred(choices: tuple[str, ...], excluded: str = "") -> str:
+        # Newer macOS versions append a language description to the voice name.
+        return next((name for choice in choices for name in names if name != excluded
+                     and (name == choice or name.startswith(choice + " ("))),
+                    next((name for name in names if name != excluded), names[0]))
+
+    dealer = preferred(("Rishi", "Alex", "Daniel", "Samantha"))
+    other = preferred(("Veena", "Lekha", "Samantha", "Karen", "Moira"), dealer)
+    return dealer, other
 
 
 def select_calls(data_dir: Path, render_all: bool = False) -> list[Path]:
@@ -129,18 +155,37 @@ def apply_timings(call: dict, spans: list[tuple[int, int]], total_ms: int, audio
 
 
 def _render_parts(call: dict, workdir: Path) -> list[Path]:
-    manifest = [{"text": spoken(u["text"]), "voice": voice_for(u["speaker"]), "out": str(workdir / f"{u['id']}.wav")}
-                for u in call["utterances"]]
-    manifest_path = workdir / f"{call['call_id']}.manifest.json"
+    """Invoke native speech tools with argument arrays and text supplied through files."""
+    if sys.platform == "darwin":
+        voices = _mac_voices()
+        parts = []
+        for i, utterance in enumerate(call["utterances"]):
+            text_path, aiff, wav = (workdir / f"part-{i:04d}.{suffix}" for suffix in ("txt", "aiff", "wav"))
+            text_path.write_text(spoken(utterance["text"]), encoding="utf-8")
+            subprocess.run(["say", "-v", voice_for(utterance["speaker"], voices), "-r", "165", "-o", str(aiff),
+                            "-f", str(text_path)], check=True, capture_output=True, text=True, timeout=120)
+            subprocess.run(["afconvert", "-f", "WAVE", "-d", f"LEI16@{RATE}", "-c", "1", str(aiff), str(wav)],
+                           check=True, capture_output=True, text=True, timeout=30)
+            parts.append(wav)
+        return parts
+    if sys.platform != "win32":
+        raise ValueError("native speech rendering requires macOS or Windows")
+    manifest = [{"text": spoken(u["text"]), "voice": voice_for(u["speaker"]),
+                 "out": str(workdir / f"part-{i:04d}.wav")} for i, u in enumerate(call["utterances"])]
+    manifest_path = workdir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PS1),
-                    "-Manifest", str(manifest_path)], check=True, capture_output=True, text=True)
+                    "-Manifest", str(manifest_path)], check=True, capture_output=True, text=True, timeout=300)
     return [Path(m["out"]) for m in manifest]
 
 
 def render_call(call_path: Path, data_dir: Path) -> dict:
     """Render one call to audio/<call_id>.wav and rewrite its JSON; returns a short report."""
     call = json.loads(call_path.read_text(encoding="utf-8"))
+    if not isinstance(call.get("call_id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]+", call["call_id"]):
+        raise ValueError("call_id must be a safe filename identifier")
+    if not call.get("utterances"):
+        raise ValueError(f"{call['call_id']}: at least one utterance is required")
     audio_rel = f"audio/{call['call_id']}.wav"
     workdir = Path(tempfile.mkdtemp(prefix=f"dw_{call['call_id']}_"))
     try:
@@ -155,12 +200,13 @@ def render_call(call_path: Path, data_dir: Path) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Render DealerWatch call transcripts to WAV with Windows SAPI.")
+    ap = argparse.ArgumentParser(description="Render DealerWatch calls to WAV with macOS speech or Windows SAPI.")
     ap.add_argument("--data-dir", default=str(REPO / "data" / "generated"))
     ap.add_argument("--all", action="store_true", help="render every call, not just the planted-window ones")
     args = ap.parse_args(argv)
-    if sys.platform != "win32" or shutil.which("powershell") is None:
-        print("make_audio: Windows PowerShell with System.Speech is required; no audio rendered.")
+    required = {"darwin": ("say", "afconvert"), "win32": ("powershell",)}.get(sys.platform)
+    if required is None or any(shutil.which(command) is None for command in required):
+        print("make_audio: macOS say/afconvert or Windows PowerShell with System.Speech is required; no audio rendered.")
         return 1
     data_dir = Path(args.data_dir)
     selected = select_calls(data_dir, args.all)
@@ -168,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     for path in selected:
         try:
             r = render_call(path, data_dir)
-        except (subprocess.CalledProcessError, ValueError, OSError) as exc:
+        except (subprocess.SubprocessError, ValueError, OSError, wave.Error) as exc:
             failures += 1
             detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else exc
             print(f"  {path.stem}: FAILED ({detail})")

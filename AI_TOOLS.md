@@ -12,3 +12,7 @@ Decisions are made by deterministic code and by the human reviewer, never by a m
 
 ## Declared reusable components
 See `DECLARED_COMPONENTS.md`.
+
+## 30 October end-to-end implementation
+
+Codex coordinated repository inspection, architecture, implementation, independent code review and automated verification. Parallel agents handled durable persistence, synthetic scenarios/performance, the basic frontend and a read-only integration review. Python/Chromium regression tests and reproducible measurements were run locally. No external model output determines an escalation; reviewer actions remain explicit.

@@ -6,7 +6,7 @@ All money is INR (float). Quantities are shares (int).
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -183,6 +183,10 @@ class Case(BaseModel):
     decisions: list[Decision] = Field(default_factory=list)
     created_at: str
     latency_ms: int = 0
+    revision: int = Field(default=0, ge=0)
+    dataset_id: str = ""
+    run_id: str = ""
+    evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
 class RunStats(BaseModel):
@@ -199,3 +203,5 @@ class RunStats(BaseModel):
     llm_fallbacks: int
     asr_provider: str
     total_ms: int
+    run_id: str = ""
+    dataset_id: str = ""

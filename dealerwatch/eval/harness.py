@@ -4,7 +4,7 @@ Population = every detector candidate plus every planted (truth) pair. Planted p
 expected recommendation; every other candidate is background and counts as a negative. A planted
 pair with no candidate is a produced DISMISS. Baseline escalates iff candidate score >= 0.5.
 
-CLI: python -m dealerwatch.eval.harness --data data/generated --runtime runtime [--md EVAL.md]
+CLI: python -m dealerwatch.eval.harness --data data/generated --runtime runtime/evaluation-cli [--md EVAL.md]
 """
 from __future__ import annotations
 
@@ -49,9 +49,16 @@ def percentile(values: list[int], q: float) -> int:
     return ordered[max(0, math.ceil(q / 100 * len(ordered)) - 1)]
 
 
-def evaluate(data_dir: str, runtime_dir: str, llm: Any = None) -> dict[str, Any]:
+def evaluate(data_dir: str, runtime_dir: str, llm: Any = None, *, dataset_id: str | None = None) -> dict[str, Any]:
     """Run the pipeline on `data_dir` and score it against truth.json."""
-    stats = run(data_dir, runtime_dir, llm=llm)
+    runtime = Path(runtime_dir)
+    marker = runtime / ".evaluation-runtime"
+    existing = Store(runtime / config.DB_FILE)
+    cases_before = existing.list_cases()
+    if (runtime / "jobs.db").exists() or any(case.decisions for case in cases_before) or (cases_before and not marker.exists()):
+        raise ValueError("Use an isolated empty evaluation runtime; existing investigation history will not be reset")
+    marker.touch()
+    stats = run(data_dir, runtime_dir, llm=llm, reset=True, dataset_id=dataset_id)
     cases = Store(Path(runtime_dir) / config.DB_FILE).list_cases()
     truth = load_universe(data_dir).truth.get("cases", [])
     by_pair = {(c.order.order_id, c.account.account_id): c for c in cases}
@@ -180,7 +187,7 @@ def to_markdown(result: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Evaluate DealerWatch on a labelled data directory.")
     parser.add_argument("--data", default="data/generated")
-    parser.add_argument("--runtime", default="runtime")
+    parser.add_argument("--runtime", default="runtime/evaluation-cli", help="isolated evaluation runtime, never the live case runtime")
     parser.add_argument("--md", default="EVAL.md", help="markdown report path")
     args = parser.parse_args(argv)
     result = evaluate(args.data, args.runtime)

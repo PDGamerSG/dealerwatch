@@ -30,8 +30,14 @@
     uttRows: new Map(), uttData: new Map(), cited: new Set(),
     tab: "cases", busy: false,
     ledgerOffset: 0, ledgerLimit: 100, ledgerCount: 0, ledgerBase: 1, verify: null, expanded: new Set(),
-    evalLoaded: false,
+    evalLoaded: false, session: null, sessionBusy: false,
+    queueRequest: 0, queueLoading: false, queueError: "", queueTotal: 0, queueParams: "",
+    decisionBusy: false, decisionAttempt: null, dataBusy: false,
+    runs: [], activeRun: null, runTimer: 0, runPollErrors: 0, runStarting: false, runsRequest: 0,
   };
+  const canRead = () => Boolean(state.session && (!state.session.auth_required || state.session.authenticated));
+  const canAdmin = () => canRead() && state.session.role === "admin";
+  const runInProgress = () => state.activeRun && ["QUEUED", "RUNNING"].includes(state.activeRun.status);
 
   // ---------- DOM helpers ----------
   function setProps(node, props) {
@@ -91,8 +97,21 @@
   const statusBadge = (st) => h("span", { class: `badge st-${st}`, text: String(st).replace(/_/g, " ") });
 
   // ---------- API ----------
+  function responseError(res, data) {
+    let detail = res.statusText || `HTTP ${res.status}`;
+    if (data && data.detail) {
+      if (typeof data.detail === "string") detail = data.detail;
+      else if (Array.isArray(data.detail)) detail = data.detail.map((item) => item.msg || item.message || "Invalid input").join("; ");
+      else if (Array.isArray(data.detail.issues)) detail = "Dataset validation failed. Review the issues below.";
+      else detail = JSON.stringify(data.detail);
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    err.data = data;
+    return err;
+  }
   async function api(path, opts = {}) {
-    const init = { method: opts.method || "GET", headers: { Accept: "application/json" } };
+    const init = { method: opts.method || "GET", credentials: "same-origin", headers: { Accept: "application/json", ...opts.headers } };
     if (opts.body !== undefined) {
       init.headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(opts.body);
@@ -104,13 +123,38 @@
       try { data = JSON.parse(text); } catch { data = text; }
     }
     if (!res.ok) {
-      let detail = res.statusText;
-      if (data && data.detail) detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-      const err = new Error(detail);
-      err.status = res.status;
-      throw err;
+      if (res.status === 401 && path !== "/api/session" && state.session && state.session.auth_required) {
+        state.session.authenticated = false;
+        clearTimeout(state.runTimer);
+        $("session-status").textContent = "Your session has ended. Sign in to continue.";
+        applyAccess();
+      }
+      throw responseError(res, data);
     }
-    return data;
+    return opts.withResponse ? { data, response: res } : data;
+  }
+  async function download(path, filename) {
+    try {
+      const res = await fetch(path, { credentials: "same-origin" });
+      if (!res.ok) {
+        let data = null;
+        try { data = await res.json(); } catch { /* use status text */ }
+        throw responseError(res, data);
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const link = h("a", { href: url, download: filename });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      toast(`Download failed: ${e.message}`, true);
+    }
+  }
+  function actionKey() {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
   }
 
   // ---------- overlays ----------
@@ -160,18 +204,24 @@
   function setHash(hash) {
     if (location.hash !== hash) history.replaceState(null, "", hash);
   }
-  function showTab(tab, updateHash = true) {
+  function showTab(tab, updateHash = true, refresh = true) {
     state.tab = tab;
     for (const btn of document.querySelectorAll(".tab")) {
       const on = btn.dataset.tab === tab;
       btn.classList.toggle("active", on);
       btn.setAttribute("aria-selected", String(on));
+      btn.tabIndex = on ? 0 : -1;
     }
     for (const view of document.querySelectorAll(".view")) view.classList.toggle("active", view.id === `view-${tab}`);
     hideTip();
-    if (tab === "cases" && state.detail) renderCharts();
-    if (tab === "ledger") loadLedger().catch((e) => toast(`Ledger: ${e.message}`, true));
-    if (tab === "eval" && !state.evalLoaded) loadEval(false);
+    if (canRead() && refresh) {
+      if (tab === "cases" && state.detail) renderCharts();
+      if (tab === "overview") loadOverview();
+      if (tab === "data") loadDataReport();
+      if (tab === "runs") loadRuns();
+      if (tab === "ledger") loadLedger().catch((e) => toast(`Ledger: ${e.message}`, true));
+      if (tab === "eval" && !state.evalLoaded) loadEval(false);
+    }
     if (updateHash) setHash(tab === "cases" ? (state.selectedId ? `#/cases/${state.selectedId}` : "#/cases") : `#/${tab}`);
   }
 
@@ -186,15 +236,115 @@
   }
   function setBusy(busy, message) {
     state.busy = busy;
-    for (const id of ["run-btn", "ledger-restore", "ledger-tamper", "eval-refresh"]) $(id).disabled = busy;
+    applyAccess();
     if (busy) $("env-pill").textContent = message || "Working…";
     if (state.detail) renderDecisionBar(state.detail);
   }
 
+  // ---------- session ----------
+  function applyAccess() {
+    const session = state.session;
+    const allowed = canRead(), admin = canAdmin();
+    $("main-views").classList.toggle("hidden", !allowed);
+    $("login-form").classList.toggle("hidden", !session || !session.auth_required || session.authenticated);
+    $("logout-btn").classList.toggle("hidden", !session || !session.auth_required || !session.authenticated);
+    $("login-btn").disabled = state.sessionBusy;
+    $("logout-btn").disabled = state.sessionBusy;
+    for (const node of document.querySelectorAll("[data-admin]")) {
+      node.disabled = !admin || state.sessionBusy || state.busy || state.dataBusy || state.runStarting || Boolean(runInProgress());
+    }
+    for (const node of document.querySelectorAll("[data-admin-panel]")) node.classList.toggle("hidden", !admin);
+    for (const node of document.querySelectorAll("[data-demo]")) node.classList.toggle("hidden", !admin || !session.demo_enabled);
+    $("reviewer").readOnly = Boolean(session && session.auth_required);
+    if (session && session.auth_required && session.reviewer) $("reviewer").value = session.reviewer;
+    $("run-btn").textContent = state.runStarting ? "Starting pipeline…" : runInProgress() ? "Pipeline running…" : "Re-run pipeline";
+    if (state.detail) renderDecisionBar(state.detail);
+  }
+  async function loadSession() {
+    $("session-error").textContent = "";
+    $("session-retry").classList.add("hidden");
+    try {
+      state.session = await api("/api/session");
+      const session = state.session;
+      $("session-status").textContent = !session.auth_required ? "Local access · administrator"
+        : session.authenticated ? `Signed in as ${session.reviewer || session.role} · ${session.role}`
+          : "Sign in to access investigations.";
+      applyAccess();
+      return canRead();
+    } catch (e) {
+      state.session = null;
+      $("session-status").textContent = "Cannot connect to DealerWatch.";
+      $("session-error").textContent = e.message;
+      $("session-retry").classList.remove("hidden");
+      applyAccess();
+      return false;
+    }
+  }
+  async function signIn(event) {
+    event.preventDefault();
+    if (state.sessionBusy) return;
+    state.sessionBusy = true;
+    $("session-error").textContent = "";
+    applyAccess();
+    try {
+      await api("/api/session", { method: "POST", body: { token: $("session-token").value } });
+      if (await loadSession()) {
+        await loadWorkspace();
+        document.querySelector(`.tab[data-tab="${state.tab}"]`).focus();
+      }
+    } catch (e) {
+      $("session-error").textContent = `Sign in failed: ${e.message}`;
+      $("session-token").focus();
+    } finally {
+      $("session-token").value = "";
+      state.sessionBusy = false;
+      applyAccess();
+    }
+  }
+  async function signOut() {
+    if (state.sessionBusy) return;
+    state.sessionBusy = true;
+    applyAccess();
+    try {
+      await api("/api/session", { method: "DELETE" });
+      clearTimeout(state.runTimer);
+      state.activeRun = null;
+      state.evalLoaded = false;
+      state.cases = [];
+      state.queueTotal = 0;
+      state.queueLoading = false;
+      state.queueRequest += 1;
+      state.runsRequest += 1;
+      state.verify = null;
+      state.decisionAttempt = null;
+      clearCase();
+      renderQueue();
+      $("note").value = "";
+      $("dataset-json").value = "";
+      $("dataset-file").value = "";
+      for (const id of ["overview-body", "data-report", "data-candidate-report", "run-history", "run-progress", "ledger-rows", "eval-body"]) $(id).replaceChildren();
+      await loadSession();
+      if (!canRead()) $("session-token").focus();
+    } catch (e) {
+      $("session-error").textContent = `Sign out failed: ${e.message}`;
+    } finally {
+      state.sessionBusy = false;
+      applyAccess();
+    }
+  }
+
   // ---------- queue ----------
   function filteredCases() {
-    const rec = $("filter-rec").value, st = $("filter-status").value;
-    return state.cases.filter((c) => (!rec || c.recommendation === rec) && (!st || c.status === st));
+    return state.cases;
+  }
+  function queueParams() {
+    const params = new URLSearchParams();
+    for (const [name, id] of [["q", "filter-query"], ["scrip", "filter-scrip"], ["dealer_id", "filter-dealer"],
+      ["recommendation", "filter-rec"], ["status", "filter-status"]]) {
+      const value = $(id).value.trim();
+      if (value) params.set(name, value);
+    }
+    return params.toString();
   }
   function scoreBar(score) {
     const fill = h("span");
@@ -202,7 +352,10 @@
     return h("div", { class: "scorebar" }, fill);
   }
   function queueItem(c) {
-    return h("li", { class: "queue-item", dataset: { caseId: c.case_id }, onclick: () => selectCase(c.case_id) },
+    return h("li", { class: "queue-item", role: "button", tabindex: 0, "aria-label": `Open case ${c.case_id}, ${c.scrip}, ${c.status}`,
+      dataset: { caseId: c.case_id }, onclick: () => selectCase(c.case_id), onkeydown: (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectCase(c.case_id); }
+      } },
       h("div", { class: "qi-row" }, h("span", { class: "qi-id", text: c.case_id }), recBadge(c.recommendation)),
       h("div", { class: "qi-main", text: `${c.scrip} · ${c.account_id} ${c.holder_name}` }),
       h("div", { class: "qi-row" },
@@ -215,11 +368,12 @@
     const items = filteredCases();
     list.replaceChildren(...items.map(queueItem));
     if (!items.length) {
-      list.append(h("li", { class: "queue-empty", text: state.cases.length
-        ? "No cases match the filters."
-        : "No cases yet. Generate the synthetic data, then click Re-run pipeline." }));
+      list.append(h("li", { class: "queue-empty", text: state.queueError || (state.queueLoading ? "Loading cases…"
+        : state.queueParams ? "No cases match the filters."
+          : "No cases yet. Import a dataset, then click Re-run pipeline.") }));
     }
-    $("queue-count").textContent = `(${items.length} of ${state.cases.length})`;
+    $("queue-count").textContent = state.queueLoading ? "(loading…)" : `(${nfInt.format(state.queueTotal)})`;
+    $("queue-list").setAttribute("aria-busy", String(state.queueLoading));
     markSelected(false);
   }
   function markSelected(scroll = true) {
@@ -238,39 +392,65 @@
     if (list[i].case_id !== state.selectedId) selectCase(list[i].case_id);
   }
   async function loadCases(preferId) {
+    const request = ++state.queueRequest;
+    const params = queueParams();
+    state.queueLoading = true;
+    state.queueError = "";
+    renderQueue();
     try {
-      state.cases = await api("/api/cases");
+      const result = await api(`/api/cases${params ? `?${params}` : ""}`, { withResponse: true });
+      if (request !== state.queueRequest || !canRead()) return;
+      state.cases = result.data;
+      const total = Number(result.response.headers.get("X-Total-Count"));
+      state.queueTotal = Number.isFinite(total) && result.response.headers.has("X-Total-Count") ? total : state.cases.length;
+      state.queueParams = params;
     } catch (e) {
+      if (request !== state.queueRequest || !canRead()) return;
       state.cases = [];
+      state.queueTotal = 0;
+      state.queueError = `Could not load cases: ${e.message}. Use Search to retry.`;
       toast(`Could not load cases: ${e.message}`, true);
     }
+    if (request !== state.queueRequest) return;
+    state.queueLoading = false;
     renderQueue();
     const pick = state.cases.some((c) => c.case_id === preferId)
       ? preferId : (filteredCases()[0] || state.cases[0] || {}).case_id;
     if (pick) await selectCase(pick, state.tab !== "cases");
-    else clearCase();
+    else clearCase(state.queueError || "No cases to display. Update the filters or run the pipeline.");
   }
 
   // ---------- case view ----------
-  function clearCase() {
+  function clearCase(message = "Select a case from the alert queue.") {
+    for (const audio of $("call-audio").querySelectorAll("audio")) audio.pause();
     state.selectedId = null;
     state.detail = null;
     $("case-body").classList.add("hidden");
     $("case-empty").classList.remove("hidden");
+    $("case-empty").textContent = message;
     $("decision-bar").classList.add("hidden");
   }
   async function selectCase(id, keepHash = false) {
+    if (!canRead()) return;
+    for (const audio of $("call-audio").querySelectorAll("audio")) audio.pause();
     state.selectedId = id;
+    state.detail = null;
+    $("case-body").classList.add("hidden");
+    $("decision-bar").classList.add("hidden");
+    $("case-empty").classList.remove("hidden");
+    $("case-empty").textContent = `Loading ${id}…`;
     markSelected();
     if (!keepHash) setHash(`#/cases/${id}`);
     let detail;
     try {
       detail = await api(`/api/cases/${encodeURIComponent(id)}`);
     } catch (e) {
+      if (state.selectedId !== id) return;
+      $("case-empty").textContent = `Could not load ${id}: ${e.message}. Select the case to retry.`;
       toast(`Could not load ${id}: ${e.message}`, true);
       return;
     }
-    if (state.selectedId !== id) return; // a newer selection won
+    if (state.selectedId !== id || !canRead()) return; // a newer selection won
     state.detail = detail;
     const cueCalls = detail.cues.map((c) => c.call_id);
     const best = detail.call_details.find((c) => cueCalls.includes(c.call_id)) || detail.call_details[0];
@@ -331,6 +511,107 @@
         kpi("Lead time", `${Math.round(c.minutes_before)} min`),
         kpi("Orders sandwiched", String(c.hit_count)),
         kpi("Evidence chain", `${okCount} / ${d.chain.length}`)));
+  }
+
+  // ---------- overview / datasets ----------
+  function countGroup(title, groups, withProfit = false) {
+    const entries = Object.entries(groups || {});
+    if (!entries.length) return section(title, h("p", { class: "muted", text: "No cases yet." }));
+    return section(title, table(withProfit ? ["Group", "Cases", "Profit (INR)"] : ["Group", "Cases"], entries.map(([name, value]) => {
+      const count = typeof value === "number" ? value : value.count;
+      return cellsRow(withProfit ? [name, count, fmtInr(value.profit_inr || 0)] : [name.replace(/_/g, " "), count]);
+    })));
+  }
+  async function loadOverview() {
+    const body = $("overview-body");
+    body.replaceChildren(h("p", { class: "muted", text: "Loading overview…" }));
+    $("overview-refresh").disabled = true;
+    try {
+      const data = await api("/api/dashboard");
+      if (!canRead()) return;
+      const latest = data.latest_run;
+      body.replaceChildren(
+        h("div", { class: "kpis overview-kpis" }, kpi("Cases", fmtQty(data.cases || 0)),
+          kpi("Estimated profit across case versions", fmtInr(data.total_profit_inr || 0)),
+          kpi("Latest run", latest ? latest.status || "Available" : "None")),
+        h("div", { class: "basic-grid" }, countGroup("Recommendations", data.by_recommendation), countGroup("Reviewer status", data.by_status),
+          countGroup("By scrip", data.by_scrip, true), countGroup("By dealer", data.by_dealer, true)));
+    } catch (e) {
+      body.replaceChildren(h("p", { class: "reject", text: `Overview unavailable: ${e.message}. Use Refresh overview to retry.` }));
+    } finally {
+      $("overview-refresh").disabled = false;
+    }
+  }
+  function renderDataReport(target, report, imported = false) {
+    const counts = Object.entries(report.counts || {});
+    const issues = Array.isArray(report.issues) ? report.issues : [];
+    const children = [h("p", { class: report.valid ? "metric-best" : "fail", text: imported ? "Dataset imported and activated."
+      : report.valid ? "Dataset is valid." : "Dataset is invalid." })];
+    if (report.source) children.push(h("p", { class: "small", text: `Source: ${report.source}` }));
+    if (report.fingerprint) children.push(h("p", { class: "small mono break-text", text: `Fingerprint: ${report.fingerprint}` }));
+    if (report.date_range) children.push(h("p", { class: "small", text: `Date range: ${fmtVal(report.date_range)}` }));
+    if (counts.length) children.push(table(["Records", "Count"], counts.map(([name, count]) => cellsRow([name, count]))));
+    if (report.label_counts && Object.keys(report.label_counts).length) {
+      children.push(section("Evaluation labels", table(["Label", "Count"], Object.entries(report.label_counts).map(([name, count]) => cellsRow([name, count])))));
+    }
+    if (issues.length) children.push(section(`Validation issues (${issues.length})`,
+      table(["Severity", "Location", "Message"], issues.map((issue) => cellsRow([issue.severity, issue.location, issue.message], 3)), 3)));
+    else children.push(h("p", { class: "muted small", text: "No validation issues." }));
+    if (imported) children.push(h("p", { text: "Use Re-run pipeline to investigate this dataset." }));
+    target.replaceChildren(...children);
+  }
+  async function loadDataReport() {
+    $("data-report").replaceChildren(h("p", { class: "muted", text: "Loading dataset report…" }));
+    $("data-refresh").disabled = true;
+    try {
+      const report = await api("/api/data");
+      if (canRead()) renderDataReport($("data-report"), report);
+    } catch (e) {
+      $("data-report").replaceChildren(h("p", { class: "reject", text: `Dataset report unavailable: ${e.message}. Use Refresh dataset report to retry.` }));
+    } finally {
+      $("data-refresh").disabled = false;
+    }
+  }
+  async function readDatasetFile() {
+    const file = $("dataset-file").files[0];
+    if (!file) return;
+    try {
+      $("dataset-json").value = await file.text();
+      $("data-candidate-report").replaceChildren(h("p", { class: "muted", text: `${file.name} loaded. Validate JSON before importing.` }));
+    } catch (e) {
+      $("data-candidate-report").replaceChildren(h("p", { class: "reject", text: `Cannot read file: ${e.message}` }));
+    }
+  }
+  async function submitDataset(importing) {
+    if (!canAdmin() || state.dataBusy || runInProgress() || state.busy) return;
+    const target = $("data-candidate-report");
+    let bundle;
+    try {
+      bundle = JSON.parse($("dataset-json").value);
+      if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) throw new Error("The bundle must be a JSON object.");
+    } catch (e) {
+      target.replaceChildren(h("p", { class: "reject", text: `Invalid JSON: ${e.message}` }));
+      $("dataset-json").focus();
+      return;
+    }
+    state.dataBusy = true;
+    applyAccess();
+    target.replaceChildren(h("p", { class: "muted", text: importing ? "Importing dataset…" : "Validating dataset…" }));
+    try {
+      const report = await api(importing ? "/api/data/import" : "/api/data/validate", { method: "POST", body: bundle });
+      renderDataReport(target, report, importing && report.imported);
+      if (importing && report.imported) {
+        await loadDataReport();
+        toast("Dataset imported. Run the pipeline to investigate it.");
+      }
+    } catch (e) {
+      const report = e.data && (e.data.detail || e.data);
+      if (report && Array.isArray(report.issues)) renderDataReport(target, report);
+      else target.replaceChildren(h("p", { class: "reject", text: `${importing ? "Import" : "Validation"} failed: ${e.message}` }));
+    } finally {
+      state.dataBusy = false;
+      applyAccess();
+    }
   }
 
   // ---------- citations ----------
@@ -696,7 +977,7 @@
     const audioBox = $("call-audio");
     let audio = null;
     if (call.has_audio) {
-      audio = h("audio", { controls: true, preload: "metadata", src: `/audio/${encodeURIComponent(call.call_id)}` });
+      audio = h("audio", { controls: true, preload: "metadata", src: `/audio/${encodeURIComponent(call.call_id)}?case_id=${encodeURIComponent(d.case_id)}` });
       audioBox.replaceChildren(audio);
     } else {
       audioBox.replaceChildren(h("div", { class: "no-audio", text: "No audio rendered for this call; showing the replayed transcript." }));
@@ -782,14 +1063,17 @@
   function renderDecisionBar(d) {
     $("decision-bar").classList.remove("hidden");
     const terminal = TERMINAL.has(d.status);
-    for (const btn of document.querySelectorAll("#decision-bar [data-action]")) btn.disabled = terminal || state.busy;
+    const disabled = !canRead() || terminal || state.busy || state.decisionBusy || state.sessionBusy;
+    for (const btn of document.querySelectorAll("#decision-bar [data-action]")) btn.disabled = disabled;
+    $("reviewer").disabled = state.decisionBusy;
+    $("note").disabled = state.decisionBusy;
     $("decision-state").textContent = terminal
       ? `${d.case_id} is ${d.status} (final).`
-      : `${d.case_id} status: ${d.status.replace(/_/g, " ")}`;
+      : state.decisionBusy ? "Recording decision…" : `${d.case_id} status: ${d.status.replace(/_/g, " ")}`;
   }
   async function decide(action) {
     const d = state.detail;
-    if (!d) return;
+    if (!d || !canRead() || state.decisionBusy || state.busy || TERMINAL.has(d.status)) return;
     const reviewer = $("reviewer").value.trim();
     if (!reviewer) {
       toast("Enter the reviewer name first.", true);
@@ -797,52 +1081,167 @@
       return;
     }
     const note = $("note").value.trim();
-    if (action === "approve_escalation" || action === "dismiss") {
-      const escalate = action === "approve_escalation";
-      const ok = await confirmDialog(escalate ? "Approve escalation?" : "Dismiss this case?",
-        `${d.case_id} (${d.candidate.scrip}, ${d.account.account_id} ${d.account.holder_name}) will move to ` +
-        `${escalate ? "ESCALATED" : "CLOSED"}. This is final and is recorded in the ledger under "${reviewer}".`,
-        ACTION_LABELS[action]);
-      if (!ok) return;
-    }
+    state.decisionBusy = true;
+    renderDecisionBar(d);
     try {
+      if (action === "approve_escalation" || action === "dismiss") {
+        const escalate = action === "approve_escalation";
+        const ok = await confirmDialog(escalate ? "Approve escalation?" : "Dismiss this case?",
+          `${d.case_id} (${d.candidate.scrip}, ${d.account.account_id} ${d.account.holder_name}) will move to ` +
+          `${escalate ? "ESCALATED" : "CLOSED"}. This is final and is recorded in the ledger under "${reviewer}".`,
+          ACTION_LABELS[action]);
+        if (!ok) return;
+      }
+      const body = { action, reviewer, note, expected_revision: d.revision };
+      const signature = JSON.stringify([d.case_id, body]);
+      if (!state.decisionAttempt || state.decisionAttempt.signature !== signature) {
+        state.decisionAttempt = { signature, key: actionKey() };
+      }
       const updated = await api(`/api/cases/${encodeURIComponent(d.case_id)}/decision`,
-        { method: "POST", body: { action, reviewer, note } });
+        { method: "POST", body, headers: { "Idempotency-Key": state.decisionAttempt.key } });
+      state.decisionAttempt = null;
       if (state.detail && state.detail.case_id === d.case_id) {
         state.detail.status = updated.status;
         state.detail.decisions = updated.decisions;
+        state.detail.revision = updated.revision;
         renderHeader(state.detail);
         renderHistory(state.detail);
-        renderDecisionBar(state.detail);
+        $("note").value = "";
       }
-      const row = state.cases.find((c) => c.case_id === d.case_id);
-      if (row) row.status = updated.status;
-      renderQueue();
-      $("note").value = "";
+      await loadCases(state.selectedId);
       toast(`${ACTION_LABELS[action]} recorded for ${d.case_id}; status is now ${updated.status}.`);
     } catch (e) {
-      toast(e.status === 409 ? `Not allowed: ${e.message}` : `Decision failed: ${e.message}`, true);
+      if (e.status && e.status < 500) state.decisionAttempt = null;
+      if (e.status === 409) {
+        await loadCases(state.selectedId);
+        toast(`Decision not recorded: ${e.message}. The latest case state has been loaded.`, true);
+      } else {
+        toast(`Decision failed: ${e.message}${e.status ? "" : ". Retry the same action to check its result safely."}`, true);
+      }
+    } finally {
+      state.decisionBusy = false;
+      if (state.detail) renderDecisionBar(state.detail);
     }
   }
 
-  // ---------- pipeline ----------
-  async function rerunPipeline() {
-    const ok = await confirmDialog("Re-run the pipeline?",
-      "Rebuilds all cases and the ledger from the synthetic data. Recorded decisions are cleared.", "Re-run");
-    if (!ok) return;
-    setBusy(true, "Running pipeline…");
+  // ---------- background investigation runs ----------
+  function renderRunProgress() {
+    const run = state.activeRun;
+    if (!run) {
+      $("run-progress").replaceChildren(h("p", { class: "muted", text: "No investigation runs yet. Use Re-run pipeline to start one." }));
+      return;
+    }
+    const completed = Number(run.completed) || 0, total = Number(run.total) || 0;
+    const children = [h("p", { class: "break-text", text: `${run.run_id} · ${run.status} · ${run.stage || "waiting"}` })];
+    if (runInProgress()) {
+      const progress = h("progress", { max: Math.max(total, 1), "aria-label": "Investigation progress" });
+      if (total > 0) progress.value = Math.min(completed, total);
+      children.push(progress, h("span", { class: "small", text: total ? ` ${completed} of ${total}` : " Waiting for progress…" }));
+    }
+    if (run.stats) children.push(h("p", { text: `${fmtVal(run.stats.cases)} cases · ${fmtVal(run.stats.escalate)} escalate · ${fmtVal(run.stats.review)} review · ${fmtVal(run.stats.dismiss)} dismiss · ${fmtVal(run.stats.total_ms)} ms` }));
+    if (run.error) children.push(h("p", { class: "reject", text: `Run failed: ${run.error}` }));
+    if (state.runPollErrors) children.push(h("p", { class: "fail", text: "Run updates are unavailable. The investigation may still be running." }));
+    $("run-progress").replaceChildren(...children);
+  }
+  function renderRunHistory() {
+    if (!state.runs.length) {
+      $("run-history").replaceChildren(h("p", { class: "muted", text: "No investigation runs have been recorded." }));
+      return;
+    }
+    $("run-history").replaceChildren(table(["Run", "Status", "Stage", "Progress", "Started", "Finished", "Result"], state.runs.map((run) =>
+      cellsRow([run.run_id, run.status, run.stage || "—", `${run.completed || 0} / ${run.total || 0}`,
+        dateTime(run.started_at || run.created_at), dateTime(run.finished_at) || "—",
+        run.error || (run.stats ? `${fmtVal(run.stats.cases)} cases, ${fmtVal(run.stats.total_ms)} ms` : "—")], 7)), 7));
+  }
+  function scheduleRunPoll() {
+    clearTimeout(state.runTimer);
+    if (canRead() && runInProgress()) state.runTimer = setTimeout(pollRun, 1000);
+  }
+  async function loadRuns() {
+    const request = ++state.runsRequest;
+    $("runs-refresh").disabled = true;
+    if (!state.runs.length) $("run-history").replaceChildren(h("p", { class: "muted", text: "Loading run history…" }));
     try {
-      const st = await api("/api/run", { method: "POST" });
-      state.verify = null;
-      renderVerify();
-      await loadCases(state.selectedId);
-      toast(`Pipeline done: ${st.cases} cases (${st.escalate} escalate, ${st.review} review, ${st.dismiss} dismiss) in ${st.total_ms} ms.`);
+      const runs = await api("/api/runs");
+      if (request !== state.runsRequest || !canRead()) return;
+      const wasRunning = Boolean(runInProgress());
+      state.runs = runs;
+      state.activeRun = runs.find((run) => ["QUEUED", "RUNNING"].includes(run.status)) || runs[0] || null;
+      state.runPollErrors = 0;
+      $("run-retry-poll").classList.add("hidden");
+      renderRunProgress();
+      renderRunHistory();
+      applyAccess();
+      scheduleRunPoll();
+      if (wasRunning && !runInProgress()) {
+        await loadCases(state.selectedId);
+        await loadHealth();
+      }
     } catch (e) {
-      toast(`Pipeline failed: ${e.message}`, true);
+      $("run-history").replaceChildren(h("p", { class: "reject", text: `Run history unavailable: ${e.message}. Use Refresh run history to retry.` }));
     } finally {
-      setBusy(false);
-      loadHealth();
-      if (state.tab === "ledger") loadLedger().catch(() => {});
+      if (request === state.runsRequest) $("runs-refresh").disabled = false;
+    }
+  }
+  async function pollRun() {
+    const id = state.activeRun && state.activeRun.run_id;
+    if (!id || !canRead()) return;
+    clearTimeout(state.runTimer);
+    try {
+      const run = await api(`/api/runs/${encodeURIComponent(id)}`);
+      if (!canRead() || !state.activeRun || state.activeRun.run_id !== id) return;
+      state.activeRun = run;
+      state.runs = [run, ...state.runs.filter((item) => item.run_id !== id)];
+      state.runPollErrors = 0;
+      $("run-retry-poll").classList.add("hidden");
+      renderRunProgress();
+      renderRunHistory();
+      applyAccess();
+      if (runInProgress()) {
+        scheduleRunPoll();
+      } else {
+        if (run.status === "SUCCEEDED") {
+          state.verify = null;
+          renderVerify();
+          await loadCases(state.selectedId);
+          if (state.tab === "overview") await loadOverview();
+          if (state.tab === "ledger") await loadLedger();
+          toast(`Pipeline completed: ${run.stats ? fmtVal(run.stats.cases) : "new"} cases. Reviewer decisions were preserved.`);
+        } else toast(`Pipeline failed: ${run.error || "See run history for details."}`, true);
+        await loadHealth();
+      }
+    } catch (e) {
+      state.runPollErrors += 1;
+      renderRunProgress();
+      if (state.runPollErrors < 3) scheduleRunPoll();
+      else {
+        $("run-retry-poll").classList.remove("hidden");
+        toast(`Run updates paused: ${e.message}. Use Resume run updates to reconnect.`, true);
+      }
+    }
+  }
+  async function rerunPipeline() {
+    if (!canAdmin() || state.busy || state.dataBusy || state.runStarting || runInProgress()) return;
+    state.runStarting = true;
+    applyAccess();
+    try {
+      const run = await api("/api/runs", { method: "POST" });
+      state.runsRequest += 1;
+      $("runs-refresh").disabled = false;
+      state.activeRun = run;
+      state.runs = [run, ...state.runs.filter((item) => item.run_id !== run.run_id)];
+      state.runPollErrors = 0;
+      renderRunProgress();
+      renderRunHistory();
+      showTab("runs", true, false);
+      scheduleRunPoll();
+      toast("Investigation queued. Reviewer decisions will be preserved.");
+    } catch (e) {
+      if (e.status === 409) { showTab("runs"); await loadRuns(); }
+      toast(`Could not start pipeline: ${e.message}`, true);
+    } finally {
+      state.runStarting = false;
+      applyAccess();
     }
   }
 
@@ -850,6 +1249,7 @@
   function shortHash(hash) { return hash ? `${hash.slice(0, 10)}…` : ""; }
   async function loadLedger() {
     const data = await api(`/api/ledger?limit=${state.ledgerLimit}&offset=${state.ledgerOffset}`);
+    if (!canRead()) return data;
     state.ledgerCount = data.count;
     if (state.ledgerOffset === 0 && data.entries.length) state.ledgerBase = data.entries[0].seq;
     $("ledger-head").textContent = data.head ? `head ${data.head.slice(0, 16)}… · ${data.count} entries` : `${data.count} entries`;
@@ -871,7 +1271,7 @@
       if (bad !== null && e.seq === bad) cls.push("bad");
       else if (bad !== null && e.seq > bad) cls.push("after-bad");
       const payload = JSON.stringify(e.payload);
-      const tr = h("tr", { class: cls.join(" "), dataset: { seq: String(e.seq) } },
+      const tr = h("tr", { class: cls.join(" "), tabindex: 0, "aria-label": `Ledger entry ${e.seq}, ${e.action}`, dataset: { seq: String(e.seq) } },
         h("td", { class: "num mono", text: e.seq }),
         h("td", { class: "mono", text: String(e.ts || "").replace("T", " ").slice(0, 19) }),
         h("td", { text: e.actor }),
@@ -879,9 +1279,16 @@
         h("td", { class: "payload", text: payload, title: trunc(payload, 600) }),
         h("td", { class: "hash", text: shortHash(e.hash), title: e.hash }),
         h("td", { class: "hash", text: shortHash(e.prev_hash), title: e.prev_hash }));
-      tr.addEventListener("click", () => {
+      const toggleEntry = () => {
         if (state.expanded.has(e.seq)) state.expanded.delete(e.seq); else state.expanded.add(e.seq);
-        loadLedger().catch(() => {});
+        loadLedger().then(() => {
+          const row = [...$("ledger-rows").querySelectorAll("tr.entry")].find((item) => item.dataset.seq === String(e.seq));
+          if (row) row.focus({ preventScroll: true });
+        }).catch((error) => toast(`Ledger: ${error.message}`, true));
+      };
+      tr.addEventListener("click", toggleEntry);
+      tr.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleEntry(); }
       });
       rows.push(tr);
       if (state.expanded.has(e.seq)) {
@@ -924,6 +1331,7 @@
     }
   }
   async function tamperLedger() {
+    if (!canAdmin() || !state.session.demo_enabled || state.busy || runInProgress()) return;
     const seq = parseInt($("tamper-seq").value, 10);
     if (!Number.isFinite(seq)) { toast("Pick a seq to tamper with.", true); return; }
     const ok = await confirmDialog("Tamper with the ledger? (demo)",
@@ -940,8 +1348,9 @@
     }
   }
   async function restoreLedger() {
-    const ok = await confirmDialog("Restore a clean ledger?",
-      "Re-runs the pipeline from the synthetic data to rebuild the ledger and cases. Recorded decisions are cleared.", "Restore");
+    if (!canAdmin() || !state.session.demo_enabled || state.busy || runInProgress()) return;
+    const ok = await confirmDialog("Reset cases and restore a clean ledger?",
+      "This destructive demo reset rebuilds cases and the ledger from the active dataset. All recorded reviewer decisions and the existing audit history are cleared. Ordinary pipeline reruns preserve them.", "Reset demo data");
     if (!ok) return;
     setBusy(true, "Rebuilding ledger…");
     try {
@@ -952,6 +1361,7 @@
       renderVerify();
       await loadLedger();
       await loadCases(state.selectedId);
+      state.evalLoaded = false;
       toast(res.verify.ok ? `Ledger rebuilt: ${res.verify.checked} entries verify.` : "Ledger rebuilt but does not verify.", !res.verify.ok);
     } catch (e) {
       toast(`Restore failed: ${e.message}`, true);
@@ -1008,8 +1418,8 @@
   function verdict(produced, expected) {
     return h("span", { class: produced === expected ? "metric-best" : "fail", text: `${produced} ${produced === expected ? "✓" : "✗"}` });
   }
-  function openCaseButton(caseId) {
-    if (!caseId) return h("span", { class: "muted", text: "no candidate" });
+  function openCaseButton(caseId, evaluationCaseId) {
+    if (!caseId) return h("span", { class: "muted", text: evaluationCaseId ? "No published case" : "no candidate" });
     return h("button", { type: "button", class: "chip", text: caseId, title: "Open this case",
       onclick: () => { showTab("cases"); selectCase(caseId); } });
   }
@@ -1050,7 +1460,7 @@
     const planted = (ev.rows || []).filter((r) => r.label);
     const rows = table(["Order", "Account", "Label", "Expected", "DealerWatch", "Baseline", "Score", "Case"],
       planted.map((r) => cellsRow([r.order_id, r.account_id, r.label, r.expected, verdict(r.produced, r.expected),
-        verdict(r.baseline, r.expected), r.score === null ? "—" : r.score.toFixed(2), openCaseButton(r.case_id)], 6)));
+        verdict(r.baseline, r.expected), r.score === null ? "—" : r.score.toFixed(2), openCaseButton(r.case_id, r.evaluation_case_id)], 6)));
     body.replaceChildren(kpis,
       h("div", { class: "eval-grid" },
         section("ESCALATE: DealerWatch vs rules-only baseline", metricsTable(dw, base)),
@@ -1060,11 +1470,13 @@
       section(`Planted cases (${planted.length})`, rows));
   }
   async function loadEval(refresh) {
+    if (!canRead() || (refresh && (!canAdmin() || state.busy || runInProgress()))) return;
     const body = $("eval-body");
     body.replaceChildren(h("div", { class: "muted", text: refresh ? "Re-running evaluation…" : "Loading evaluation…" }));
     if (refresh) setBusy(true, "Running eval…");
     try {
       const ev = await api(`/api/eval${refresh ? "?refresh=true" : ""}`);
+      if (!canRead()) return;
       state.evalLoaded = true;
       renderEval(ev);
     } catch (e) {
@@ -1082,9 +1494,45 @@
     try { localStorage.setItem(REVIEWER_KEY, value); } catch { /* storage unavailable */ }
   }
   function wire() {
-    for (const btn of document.querySelectorAll(".tab")) btn.addEventListener("click", () => showTab(btn.dataset.tab));
-    $("filter-rec").addEventListener("change", renderQueue);
-    $("filter-status").addEventListener("change", renderQueue);
+    const tabs = [...document.querySelectorAll(".tab")];
+    for (const btn of tabs) {
+      btn.id = `tab-${btn.dataset.tab}`;
+      btn.setAttribute("aria-controls", `view-${btn.dataset.tab}`);
+      const panel = $(`view-${btn.dataset.tab}`);
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", btn.id);
+      btn.addEventListener("click", () => showTab(btn.dataset.tab));
+      btn.addEventListener("keydown", (event) => {
+        const index = tabs.indexOf(btn);
+        const next = event.key === "ArrowRight" ? (index + 1) % tabs.length
+          : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+            : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+        if (next >= 0) { event.preventDefault(); tabs[next].focus(); showTab(tabs[next].dataset.tab); }
+      });
+    }
+    $("login-form").addEventListener("submit", signIn);
+    $("logout-btn").addEventListener("click", signOut);
+    $("session-retry").addEventListener("click", async () => { if (await loadSession()) await loadWorkspace(); });
+    $("queue-search").addEventListener("submit", (event) => { event.preventDefault(); loadCases(state.selectedId); });
+    $("filter-rec").addEventListener("change", () => loadCases(state.selectedId));
+    $("filter-status").addEventListener("change", () => loadCases(state.selectedId));
+    $("queue-clear").addEventListener("click", () => {
+      for (const id of ["filter-query", "filter-scrip", "filter-dealer", "filter-rec", "filter-status"]) $(id).value = "";
+      loadCases(state.selectedId);
+    });
+    $("queue-export").addEventListener("click", () => download(`/api/export/cases.csv${state.queueParams ? `?${state.queueParams}` : ""}`, "dealerwatch-cases.csv"));
+    $("case-export").addEventListener("click", () => {
+      if (state.detail) download(`/api/cases/${encodeURIComponent(state.detail.case_id)}/export`, `${state.detail.case_id}-evidence.json`);
+    });
+    $("overview-refresh").addEventListener("click", loadOverview);
+    $("data-refresh").addEventListener("click", loadDataReport);
+    $("data-export").addEventListener("click", () => download("/api/data/export", "dealerwatch-dataset.json"));
+    $("dataset-file").addEventListener("change", readDatasetFile);
+    $("dataset-json").addEventListener("input", () => $("data-candidate-report").replaceChildren());
+    $("data-validate").addEventListener("click", () => submitDataset(false));
+    $("data-import").addEventListener("click", () => submitDataset(true));
+    $("runs-refresh").addEventListener("click", loadRuns);
+    $("run-retry-poll").addEventListener("click", () => { state.runPollErrors = 0; pollRun(); });
     $("run-btn").addEventListener("click", rerunPipeline);
     for (const btn of document.querySelectorAll("#decision-bar [data-action]")) btn.addEventListener("click", () => decide(btn.dataset.action));
     const reviewer = $("reviewer");
@@ -1111,14 +1559,22 @@
       resizeTimer = setTimeout(() => { if (state.tab === "cases") renderCharts(); }, 150);
     });
   }
+  async function loadWorkspace(wanted = null) {
+    const tasks = [loadHealth(), loadCases(wanted || state.selectedId), loadRuns()];
+    if (state.tab === "overview") tasks.push(loadOverview());
+    if (state.tab === "data") tasks.push(loadDataReport());
+    if (state.tab === "ledger") tasks.push(loadLedger().catch((e) => toast(`Ledger: ${e.message}`, true)));
+    if (state.tab === "eval") tasks.push(loadEval(false));
+    await Promise.all(tasks);
+  }
   async function init() {
     wire();
     const parts = location.hash.replace(/^#\/?/, "").split("/");
-    const tab = ["cases", "ledger", "eval"].includes(parts[0]) ? parts[0] : "cases";
-    const wanted = tab === "cases" && parts[1] ? decodeURIComponent(parts[1]) : null;
-    if (tab !== "cases") showTab(tab, false);
-    await loadHealth();
-    await loadCases(wanted);
+    const tab = ["overview", "cases", "data", "runs", "ledger", "eval"].includes(parts[0]) ? parts[0] : "cases";
+    let wanted = null;
+    try { wanted = tab === "cases" && parts[1] ? decodeURIComponent(parts[1]) : null; } catch { /* ignore a malformed bookmark */ }
+    showTab(tab, false);
+    if (await loadSession()) await loadWorkspace(wanted);
   }
-  init();
+  init().catch((error) => toast(`Could not start the interface: ${error.message}`, true));
 })();

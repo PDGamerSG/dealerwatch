@@ -1,6 +1,7 @@
 """Deterministic sandwich detector: retail accounts that trade ahead of a fund order and reverse into it."""
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -62,15 +63,27 @@ def _by_time(trades: list[Trade]) -> list[Trade]:
 
 
 def find_candidates(orders: list[FundOrder], trades: list[Trade]) -> list[Candidate]:
-    """All (order, account) sandwiches, sorted by score desc then order_id, account_id."""
+    """All sandwiches, using a scrip/time index; sorted by score desc, order_id, account_id.
+
+    Parse and sort each trade once, then inspect only each order's closed outer window.
+    `legs_for_order` still applies the side and open-at-order-time rules.
+    """
     parsed = {t.trade_id: parse_ts(t.time) for t in trades}
     by_scrip: dict[str, list[Trade]] = defaultdict(list)
     for tr in trades:
         by_scrip[tr.scrip].append(tr)
+    times_by_scrip: dict[str, list[datetime]] = {}
+    for scrip, scrip_trades in by_scrip.items():
+        scrip_trades.sort(key=lambda t: (parsed[t.trade_id], t.trade_id))
+        times_by_scrip[scrip] = [parsed[t.trade_id] for t in scrip_trades]
 
     raw: list[tuple[FundOrder, str, list[Trade], list[Trade]]] = []
     for order in sorted(orders, key=lambda o: (o.order_time, o.order_id)):
-        legs = legs_for_order(order, by_scrip.get(order.scrip, []), parsed)
+        t0 = parse_ts(order.order_time)
+        times = times_by_scrip.get(order.scrip, [])
+        lo = bisect_left(times, t0 - timedelta(minutes=config.PRE_WINDOW_MIN))
+        hi = bisect_right(times, t0 + timedelta(minutes=config.POST_WINDOW_MIN))
+        legs = legs_for_order(order, by_scrip.get(order.scrip, [])[lo:hi], parsed)
         for account_id in sorted(legs):
             pre, post = legs[account_id]
             if sum(t.qty for t in pre) < config.MIN_PRE_QTY or not post:

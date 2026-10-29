@@ -17,7 +17,8 @@ TRANSITIONS: dict[str, CaseStatus] = {
 TERMINAL = frozenset({CaseStatus.CLOSED, CaseStatus.ESCALATED})
 
 
-def apply_decision(store: Store, ledger: Ledger, case_id: str, action: str, reviewer: str, note: str = "") -> Case:
+def apply_decision(store: Store, ledger: Ledger, case_id: str, action: str, reviewer: str, note: str = "", *,
+                   expected_revision: int | None = None, idempotency_key: str | None = None) -> Case:
     """Apply a reviewer action. Raises KeyError for an unknown case, ValueError for an invalid action,
     an empty reviewer, or any action on a terminal (CLOSED / ESCALATED) case."""
     if action not in TRANSITIONS:
@@ -25,18 +26,13 @@ def apply_decision(store: Store, ledger: Ledger, case_id: str, action: str, revi
     reviewer = (reviewer or "").strip()
     if not reviewer:
         raise ValueError("reviewer is required")
-    case = store.get_case(case_id)
-    if case is None:
-        raise KeyError(case_id)
-    if case.status in TERMINAL:
-        raise ValueError(f"case {case_id} is {case.status.value}; no further actions allowed")
+    if expected_revision is not None and (type(expected_revision) is not int or expected_revision < 0):
+        raise ValueError("expected_revision must be a nonnegative integer")
+    if idempotency_key is not None and (not isinstance(idempotency_key, str)
+                                       or not idempotency_key.strip() or len(idempotency_key) > 200):
+        raise ValueError("idempotency key must contain 1 to 200 characters")
     new_status = TRANSITIONS[action]
     decision = Decision(case_id=case_id, action=action, reviewer=reviewer, note=note or "",
                         time=datetime.now().isoformat(timespec="seconds"))
-    updated = store.add_decision(decision, new_status)
-    ledger.append(reviewer, f"decision.{action}", {
-        "case_id": case_id, "action": action, "from_status": case.status.value,
-        "to_status": new_status.value, "note": decision.note, "time": decision.time,
-        "recommendation": case.recommendation.value,
-    })
-    return updated
+    return store.add_decision(decision, new_status, ledger=ledger, expected_revision=expected_revision,
+                              idempotency_key=idempotency_key)

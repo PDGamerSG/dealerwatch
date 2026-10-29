@@ -1,0 +1,43 @@
+{
+  "environment": {
+    "python": "3.12.14",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm",
+    "logical_cpus": 10
+  },
+  "workload": {
+    "seed": 7,
+    "orders": 1000,
+    "trades": 100000,
+    "accounts": 600,
+    "scrips": 8,
+    "trading_days": 20,
+    "orders_sha256": "c6bf9198d0f385e4e7bec17e1523a9bf0241136585edcd89a256980a8aa6122f",
+    "trades_sha256": "740b2599a40b201124266652505bc289b38c864665c6fea3bb2ea72cf9d9c01e"
+  },
+  "method": "In-memory independent seeded data; one untimed warmup per algorithm; parsing/indexing included; generation, IO and pipeline excluded.",
+  "repetitions": 3,
+  "candidates": 7107,
+  "equivalent": true,
+  "candidate_sha256": "e584d6cecc828f548a382860e0b01828cc2338cf866940c886f5b0337e486197",
+  "indexed": {
+    "runs_ms": [
+      399.725,
+      447.464,
+      411.871
+    ],
+    "median_ms": 411.871,
+    "min_ms": 399.725
+  },
+  "scan_reference": {
+    "runs_ms": [
+      6402.389,
+      6252.42,
+      6270.977
+    ],
+    "median_ms": 6270.977,
+    "min_ms": 6252.42
+  },
+  "median_speedup": 15.23
+}

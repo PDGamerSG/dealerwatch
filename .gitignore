@@ -6,3 +6,9 @@ data/generated/
 runtime/
 .llm_cache/
 .env
+.env.*
+!.env.example
+.ruff_cache/
+test-results/
+.coverage
+htmlcov/
