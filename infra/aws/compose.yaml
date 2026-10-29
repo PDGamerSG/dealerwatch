@@ -1,0 +1,67 @@
+name: dealerwatch-aws
+
+services:
+  dealerwatch:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: dealerwatch:aws
+    user: "10001:10001"
+    env_file:
+      - ${DW_AWS_ENV_FILE:?Set DW_AWS_ENV_FILE to the absolute server environment file}
+    environment:
+      DW_DATA: /data/generated
+      DW_RUNTIME: /data/runtime
+      DW_LLM_CACHE: /data/runtime/llm-cache
+      DW_LLM: ${DW_LLM:-mock}
+      DW_ASR: ${DW_ASR:-replay}
+      DW_DEMO: ${DW_DEMO:-0}
+      DW_COOKIE_SECURE: "1"
+      DW_ADMIN_TOKEN: ${DW_ADMIN_TOKEN:?Set a distinct administrator token}
+      DW_REVIEWER_TOKEN: ${DW_REVIEWER_TOKEN:?Set a distinct reviewer token}
+      DW_PUBLIC_ORIGINS: ${DW_PUBLIC_ORIGINS:?Set the exact HTTPS frontend origin}
+    volumes:
+      - /srv/dealerwatch/data:/data
+    ports:
+      - "127.0.0.1:8077:8077"
+    deploy:
+      replicas: 1
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 5m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2.11.7
+    environment:
+      PUBLIC_IP: ${PUBLIC_IP:?Set the attached static public IPv4 address}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/dealerwatch/caddy-data:/data
+      - /srv/dealerwatch/caddy-config:/config
+    depends_on:
+      dealerwatch:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

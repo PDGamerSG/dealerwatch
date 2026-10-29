@@ -37,6 +37,8 @@ Queue filters: `q` (literal case-insensitive search), `status`, `recommendation`
 
 Admin and reviewer bearer tokens can also be sent via `Authorization: Bearer <token>`. Login is limited to ten attempts per minute per client address. Avoid putting a token into a URL or logs.
 
+When the frontend is proxied through Vercel, configure `DW_PUBLIC_ORIGINS` on the backend with its exact HTTPS frontend origin. Comma-separated additional preview origins are supported; paths, credentials and wildcards are rejected. Forwarded-host headers alone never authorize a browser mutation.
+
 ## Decisions
 
 ```json

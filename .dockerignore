@@ -1,6 +1,8 @@
 .git
 .venv
 .env
+.env.*
+.vercel
 .llm_cache
 .pytest_cache
 .ruff_cache
@@ -9,3 +11,5 @@ runtime
 data/generated
 node_modules
 test-results
+landing
+.claude
