@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-29T21:28:52.166894+00:00",
+  "docker_server": "29.9.2",
+  "image": "sha256:1f502d7a653c53603848d155900799bc8e18e04deb8fb74136b65abfff514b48",
+  "platform": "linux/arm64",
+  "status": "passed",
+  "checks": [
+    "Readiness and automatic first-run data/investigation",
+    "Non-root UID 10001 with dropped capabilities and named-volume writes",
+    "Packaged frontend HTML, JavaScript and CSS",
+    "19 cases, 6 ESCALATE / 10 REVIEW / 3 DISMISS",
+    "Packaged reference clauses, transcript, trade and price evidence",
+    "Human review with idempotent retry",
+    "Background rerun succeeds and preserves review",
+    "JSON evidence integrity, CSV and dataset exports",
+    "Container restart preserves case, decision, job history and audit integrity"
+  ],
+  "case_count": 19,
+  "ledger": {
+    "ok": true,
+    "checked": 197,
+    "first_bad_seq": null,
+    "reason": null
+  }
+}

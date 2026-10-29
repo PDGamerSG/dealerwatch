@@ -1,0 +1,21 @@
+services:
+  dealerwatch:
+    build: .
+    ports:
+      - "127.0.0.1:8077:8077"
+    volumes:
+      - dealerwatch-data:/data
+    environment:
+      DW_LLM: mock
+      DW_ASR: replay
+      DW_DEMO: "0"
+      DW_ADMIN_TOKEN: ${DW_ADMIN_TOKEN:-}
+      DW_REVIEWER_TOKEN: ${DW_REVIEWER_TOKEN:-}
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  dealerwatch-data:

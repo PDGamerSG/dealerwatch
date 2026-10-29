@@ -1,0 +1,51 @@
+[
+  {
+    "clause_id": "PFUTP-4-2-q",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebi_data/meetingfiles/oct-2018/1539342662909_1.pdf",
+    "text": "Front-running is one of the dealings deemed a manipulative, fraudulent or unfair trade practice under Regulation 4(2) of the SEBI PFUTP Regulations, 2003. The original clause covered an intermediary trading ahead of a substantial client order. After the Supreme Court's 2017 ruling in SEBI v. Kanaiyalal Baldevbhai Patel and the 2018 Committee on Fair Market Conduct recommendations, it was extended to any person who places orders while holding non-public information about a substantial impending transaction in that security. Paraphrased summary, not the statutory text.",
+    "title": "SEBI PFUTP Regulations, Reg. 4(2)(q): front-running"
+  },
+  {
+    "clause_id": "PFUTP-3",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1&ssid=3&smid=0",
+    "text": "Regulation 3 of the SEBI PFUTP Regulations, 2003 prohibits any person, directly or indirectly, from dealing in securities in a fraudulent manner, using any manipulative or deceptive device or contrivance in connection with dealing in securities, employing any device, scheme or artifice to defraud, or engaging in any act or practice that operates as a fraud or deceit on any person in connection with dealing in securities. Paraphrased summary, not the statutory text.",
+    "title": "SEBI PFUTP Regulations, Reg. 3: fraudulent and deceptive devices"
+  },
+  {
+    "clause_id": "PFUTP-4-1",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1&ssid=3&smid=0",
+    "text": "Regulation 4(1) of the SEBI PFUTP Regulations, 2003 prohibits any person from indulging in a manipulative, fraudulent or unfair trade practice in securities markets. Regulation 4(2) lists dealings deemed to be such practices; since the 2013 amendment that list is illustrative, so conduct caught by Regulations 3 and 4(1) is prohibited even if it is not listed. Paraphrased summary, not the statutory text.",
+    "title": "SEBI PFUTP Regulations, Reg. 4(1): manipulative, fraudulent or unfair trade practices"
+  },
+  {
+    "clause_id": "SEBI-AMC-FR-MECH",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebi_data/meetingfiles/may-2024/1715144023897_1.pdf",
+    "text": "In 2024 SEBI amended the SEBI (Mutual Funds) Regulations, 1996 to require every AMC to put in place a structured institutional mechanism to identify and deter potential market abuse, including front-running and fraudulent transactions in securities. The mechanism covers enhanced surveillance systems, internal controls and escalation processes, and a whistle-blower policy. AMC management, including the CEO/MD and the Chief Compliance Officer, is accountable for it. SEBI set the broad framework by circular, and AMFI framed the detailed implementation standards. Paraphrased summary, not the regulatory text.",
+    "title": "SEBI: institutional mechanism at AMCs to deter and detect front-running (2024)"
+  },
+  {
+    "clause_id": "SEBI-ACT-12A",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1&ssid=1&smid=0",
+    "text": "Section 12A of the SEBI Act, 1992 prohibits any person, directly or indirectly, from using manipulative or deceptive devices in connection with the issue, purchase or sale of securities, employing any device, scheme or artifice to defraud, engaging in acts or practices that operate as a fraud or deceit, engaging in insider trading, or dealing in or communicating material non-public information in contravention of the Act and regulations. Paraphrased summary, not the statutory text.",
+    "title": "SEBI Act, 1992, Section 12A: manipulative and deceptive devices, insider trading"
+  },
+  {
+    "clause_id": "PIT-REG-4",
+    "paraphrase": true,
+    "source_url": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1&ssid=3&smid=0",
+    "text": "Context only. Regulation 4 of the SEBI (Prohibition of Insider Trading) Regulations, 2015 bars an insider from trading in listed or proposed-to-be-listed securities while in possession of unpublished price sensitive information, subject to limited defences; Regulation 3 separately restricts communicating or procuring such information. DealerWatch treats a leaked fund order as front-running under the PFUTP Regulations and cites this provision for context. Paraphrased summary, not the statutory text.",
+    "title": "SEBI PIT Regulations, 2015, Reg. 4: trading on UPSI (context)"
+  },
+  {
+    "clause_id": "AMFI-CoC",
+    "paraphrase": true,
+    "source_url": "https://www.amfiindia.com/",
+    "text": "Context only. AMFI's codes of conduct for AMCs, fund managers and dealers require integrity, honest dealing and the avoidance of conflicts with unitholders' interests. The AMFI standards framed in 2024 under SEBI's institutional-mechanism framework expect AMCs to run surveillance alerts, examine suspicious trades by employees and connected persons, including immediate relatives, and escalate potential front-running to compliance. Paraphrased summary, not the code text.",
+    "title": "AMFI code of conduct and 2024 market-abuse standards (context)"
+  }
+]

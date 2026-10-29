@@ -1,0 +1,53 @@
+name: Verify DealerWatch
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.13"
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+      - run: uv run ruff check .
+      - run: uv run python -m dealerwatch --check
+      - run: uv run python -m dealerwatch.eval.harness --runtime runtime/eval --md EVAL.md
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.13"
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: node --check dealerwatch/web/app.js
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -m browser -q
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --tag dealerwatch:check .
+      - run: python3 scripts/check_container.py --output test-results/container-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-test-results
+          path: test-results/

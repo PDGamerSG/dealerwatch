@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DealerWatch</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">DW</span>
+      <span class="brand-title">DealerWatch - front-running investigator (synthetic data)</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="false">Overview</button>
+      <button type="button" class="tab active" role="tab" data-tab="cases" aria-selected="true">Cases</button>
+      <button type="button" class="tab" role="tab" data-tab="data" aria-selected="false">Data</button>
+      <button type="button" class="tab" role="tab" data-tab="runs" aria-selected="false">Runs</button>
+      <button type="button" class="tab" role="tab" data-tab="ledger" aria-selected="false">Ledger</button>
+      <button type="button" class="tab" role="tab" data-tab="eval" aria-selected="false">Eval</button>
+    </nav>
+    <div class="topbar-right">
+      <span id="env-pill" class="env-pill">connecting...</span>
+      <button type="button" id="run-btn" class="btn btn-ghost" data-admin disabled>Re-run pipeline</button>
+    </div>
+  </header>
+
+  <div class="session-bar">
+    <span id="session-status" role="status">Checking session…</span>
+    <form id="login-form" class="toolbar hidden">
+      <label class="field">Access token <input id="session-token" type="password" autocomplete="current-password" required></label>
+      <button type="submit" id="login-btn" class="btn btn-small">Sign in</button>
+    </form>
+    <button type="button" id="logout-btn" class="btn btn-small hidden">Sign out</button>
+    <button type="button" id="session-retry" class="btn btn-small hidden">Retry connection</button>
+    <span id="session-error" class="fail" role="alert"></span>
+  </div>
+
+  <main id="main-views" class="views hidden">
+    <section id="view-overview" class="view" aria-label="Overview">
+      <div class="page">
+        <div class="card">
+          <div class="card-head"><h2>Investigation overview</h2><button type="button" id="overview-refresh" class="btn btn-small">Refresh overview</button></div>
+          <p class="muted small">Synthetic investigation cases. Recommendations need a human decision before escalation.</p>
+          <div id="overview-body" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-cases" class="view active" aria-label="Cases">
+      <aside class="queue" aria-label="Alert queue">
+        <div class="queue-head">
+          <div class="queue-title">Alert queue <span id="queue-count" class="muted"></span></div>
+          <form id="queue-search" class="queue-search">
+            <label>Search cases <input id="filter-query" type="search" placeholder="Case, account, dealer or scrip"></label>
+            <div class="queue-filters">
+              <label>Scrip <input id="filter-scrip" type="text" placeholder="e.g. INFY"></label>
+              <label>Dealer ID <input id="filter-dealer" type="text" placeholder="e.g. D1"></label>
+            </div>
+            <div class="toolbar">
+              <button type="submit" class="btn btn-small">Search</button>
+              <button type="button" id="queue-clear" class="btn btn-small">Clear filters</button>
+              <button type="button" id="queue-export" class="btn btn-small">Export queue CSV</button>
+            </div>
+          </form>
+          <div class="queue-filters">
+            <label>Recommendation
+              <select id="filter-rec">
+                <option value="">All</option>
+                <option value="ESCALATE">Escalate</option>
+                <option value="REVIEW">Review</option>
+                <option value="DISMISS">Dismiss</option>
+              </select>
+            </label>
+            <label>Status
+              <select id="filter-status">
+                <option value="">All</option>
+                <option value="NEW">New</option>
+                <option value="UNDER_REVIEW">Under review</option>
+                <option value="INFO_REQUESTED">Info requested</option>
+                <option value="ESCALATED">Escalated</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <ol id="queue-list" class="queue-list" tabindex="0" aria-label="Cases"></ol>
+        <div class="queue-foot muted"><kbd>j</kbd> / <kbd>k</kbd> move through the queue</div>
+      </aside>
+
+      <section class="case-panel" aria-label="Case">
+        <div id="case-scroll" class="case-scroll">
+          <div id="case-empty" class="empty-state">Select a case from the alert queue.</div>
+          <div id="case-body" class="case-body hidden">
+            <div class="toolbar case-tools"><button type="button" id="case-export" class="btn btn-small">Export evidence JSON</button></div>
+            <div id="case-header" class="card case-header"></div>
+
+            <div class="card" id="card-timeline">
+              <div class="card-head">
+                <h2>Price and trades around the fund order</h2>
+                <div class="legend">
+                  <span class="lg lg-price">price (1-min close)</span>
+                  <span class="lg lg-order">fund order</span>
+                  <span class="lg lg-pre">pre-order trade</span>
+                  <span class="lg lg-post">post-order trade</span>
+                </div>
+              </div>
+              <div id="timeline" class="chart"></div>
+            </div>
+
+            <div class="grid-2">
+              <div class="card" id="card-chain">
+                <div class="card-head"><h2>Evidence chain</h2><span id="chain-score" class="muted"></span></div>
+                <ol id="chain" class="chain"></ol>
+              </div>
+              <div class="col">
+                <div class="card" id="card-summary">
+                  <div class="card-head"><h2>Grounded summary</h2><span id="summary-badge"></span></div>
+                  <div id="summary-reject" class="reject hidden"></div>
+                  <p id="summary" class="summary"></p>
+                </div>
+                <div class="card" id="card-clauses">
+                  <div class="card-head"><h2>Regulatory clauses</h2></div>
+                  <div id="clauses"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="card-graph">
+              <div class="card-head"><h2>Link path: dealer to account</h2><span id="graph-note" class="muted"></span></div>
+              <div id="graph" class="chart"></div>
+            </div>
+
+            <div class="card" id="card-calls">
+              <div class="card-head"><h2>Calls in the lookback window</h2><span id="calls-note" class="muted"></span></div>
+              <div id="call-tabs" class="call-tabs"></div>
+              <div id="call-meta" class="call-meta"></div>
+              <div id="call-audio" class="call-audio"></div>
+              <div id="cues" class="cues"></div>
+              <div id="transcript" class="transcript" aria-label="Transcript"></div>
+            </div>
+
+            <div class="card" id="card-history">
+              <div class="card-head"><h2>Decision history</h2></div>
+              <ol id="history" class="history"></ol>
+            </div>
+          </div>
+        </div>
+
+        <div id="decision-bar" class="decision-bar hidden">
+          <label class="field">Reviewer <input id="reviewer" type="text" maxlength="80" autocomplete="off"></label>
+          <label class="field grow">Note <input id="note" type="text" maxlength="2000" autocomplete="off" placeholder="Reason for the decision (recorded in the ledger)"></label>
+          <div class="actions">
+            <button type="button" class="btn" data-action="start_review">Start review</button>
+            <button type="button" class="btn" data-action="request_info">Request info</button>
+            <button type="button" class="btn btn-danger" data-action="approve_escalation">Approve escalation</button>
+            <button type="button" class="btn btn-neutral" data-action="dismiss">Dismiss</button>
+          </div>
+          <span id="decision-state" class="decision-state"></span>
+        </div>
+      </section>
+    </section>
+
+    <section id="view-data" class="view" aria-label="Data">
+      <div class="page">
+        <div class="card">
+          <div class="card-head">
+            <h2>Active dataset</h2>
+            <div class="toolbar">
+              <button type="button" id="data-refresh" class="btn btn-small">Refresh dataset report</button>
+              <button type="button" id="data-export" class="btn btn-small">Export active dataset</button>
+            </div>
+          </div>
+          <div id="data-report" aria-live="polite"></div>
+        </div>
+        <div class="card" data-admin-panel>
+          <div class="card-head"><h2>Validate and import JSON</h2></div>
+          <p class="muted small">Choose a JSON universe bundle or paste one below. Import activates the dataset; run the pipeline separately to investigate it. Existing cases retain their original evidence.</p>
+          <label class="field">Dataset JSON file <input id="dataset-file" type="file" accept=".json,application/json" data-admin></label>
+          <label class="dataset-input">Dataset JSON <textarea id="dataset-json" rows="9" spellcheck="false" placeholder="Paste the JSON universe bundle here" data-admin></textarea></label>
+          <div class="toolbar">
+            <button type="button" id="data-validate" class="btn" data-admin>Validate JSON</button>
+            <button type="button" id="data-import" class="btn btn-primary" data-admin>Import dataset</button>
+          </div>
+          <div id="data-candidate-report" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-runs" class="view" aria-label="Runs">
+      <div class="page">
+        <div class="card">
+          <div class="card-head"><h2>Investigation runs</h2><button type="button" id="runs-refresh" class="btn btn-small">Refresh run history</button></div>
+          <p class="muted small">Re-run pipeline starts a background investigation of the active dataset and preserves recorded reviewer decisions. A failed run leaves existing cases in place.</p>
+          <div id="run-progress" role="status" aria-live="polite">No run selected.</div>
+          <button type="button" id="run-retry-poll" class="btn btn-small hidden">Resume run updates</button>
+        </div>
+        <div class="card"><h2>Run history</h2><div id="run-history"></div></div>
+      </div>
+    </section>
+
+    <section id="view-ledger" class="view" aria-label="Ledger">
+      <div class="page">
+        <div class="card">
+          <div class="card-head"><h2>Hash-chained audit ledger</h2><span id="ledger-head" class="muted mono"></span></div>
+          <p class="muted small">Every pipeline step and every human decision is appended with sha256(prev_hash + canonical entry). Editing any payload breaks the chain from that entry on.</p>
+          <div class="toolbar">
+            <button type="button" id="ledger-verify" class="btn btn-primary">Verify chain</button>
+            <span class="sep" data-demo></span>
+            <label class="field" data-demo>Seq <input id="tamper-seq" type="number" min="0" step="1" data-admin></label>
+            <button type="button" id="ledger-tamper" class="btn btn-danger" data-admin data-demo>Tamper demo</button>
+            <button type="button" id="ledger-restore" class="btn" data-admin data-demo>Restore clean ledger</button>
+          </div>
+          <div id="verify-banner" class="banner hidden" role="status"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Entries <span class="muted small">(oldest first, ascending seq; click a row for hashes)</span></h2>
+            <div class="pager">
+              <span id="ledger-range" class="muted"></span>
+              <button type="button" id="ledger-prev" class="btn btn-small">Prev</button>
+              <button type="button" id="ledger-next" class="btn btn-small">Next</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table ledger-table">
+              <thead><tr><th>Seq</th><th>Time</th><th>Actor</th><th>Action</th><th>Payload</th><th>Hash</th><th>Prev hash</th></tr></thead>
+              <tbody id="ledger-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-eval" class="view" aria-label="Eval">
+      <div class="page">
+        <div class="card">
+          <div class="card-head">
+            <h2>Evaluation on the labelled synthetic universe</h2>
+            <button type="button" id="eval-refresh" class="btn btn-small" data-admin>Re-run eval</button>
+          </div>
+          <p class="muted small">Planted cases with known labels. DealerWatch (full evidence chain) vs a rules-only baseline that escalates when the sandwich score is at least 0.5.</p>
+          <div id="eval-body"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="tooltip" class="tooltip hidden" role="tooltip"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <dialog id="confirm" class="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h3 id="confirm-title">Confirm</h3>
+      <p id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button type="submit" value="ok" id="confirm-ok" class="btn btn-danger">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

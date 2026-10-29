@@ -1,0 +1,38 @@
+{
+  "environment": "macOS arm64, Python3.12.14, one Uvicorn process, loopback, 19 cases with audio",
+  "http": {
+    "/api/health": {
+      "median_ms": 1.19,
+      "p95_ms": 1.34,
+      "requests": 30
+    },
+    "/api/cases": {
+      "median_ms": 5.55,
+      "p95_ms": 5.85,
+      "requests": 30
+    },
+    "/api/cases/{id}": {
+      "median_ms": 3.85,
+      "p95_ms": 4.26,
+      "requests": 30
+    },
+    "/api/dashboard": {
+      "median_ms": 5.22,
+      "p95_ms": 5.46,
+      "requests": 30
+    }
+  },
+  "ready": {
+    "ready": true,
+    "data_valid": true,
+    "database": "ok"
+  },
+  "case_count": 19,
+  "audio_bytes": 1071272,
+  "ledger": {
+    "ok": true,
+    "checked": 98,
+    "first_bad_seq": null,
+    "reason": null
+  }
+}
