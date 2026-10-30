@@ -152,15 +152,15 @@
         </div>
 
         <div id="decision-bar" class="decision-bar hidden">
+          <span id="decision-state" class="decision-state"></span>
           <label class="field">Reviewer <input id="reviewer" type="text" maxlength="80" autocomplete="off"></label>
-          <label class="field grow">Note <input id="note" type="text" maxlength="2000" autocomplete="off" placeholder="Reason for the decision (recorded in the ledger)"></label>
+          <label class="field grow">Note <input id="note" type="text" maxlength="2000" autocomplete="off" placeholder="Reason for the decision, recorded in the ledger"></label>
           <div class="actions">
             <button type="button" class="btn" data-action="start_review">Start review</button>
             <button type="button" class="btn" data-action="request_info">Request info</button>
-            <button type="button" class="btn btn-danger" data-action="approve_escalation">Approve escalation</button>
             <button type="button" class="btn btn-neutral" data-action="dismiss">Dismiss</button>
+            <button type="button" class="btn btn-danger" data-action="approve_escalation">Approve escalation</button>
           </div>
-          <span id="decision-state" class="decision-state"></span>
         </div>
       </section>
     </section>
