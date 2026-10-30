@@ -11,10 +11,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <a class="brand-mark" href="/">DealerWatch</a>
-      <span class="brand-title">Front-running investigator. Synthetic data.</span>
-    </div>
+    <a class="brand-mark" href="/">DealerWatch</a>
     <nav class="tabs" role="tablist" aria-label="Views">
       <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="false">Overview</button>
       <button type="button" class="tab active" role="tab" data-tab="cases" aria-selected="true">Cases</button>
@@ -24,21 +21,18 @@
       <button type="button" class="tab" role="tab" data-tab="eval" aria-selected="false">Eval</button>
     </nav>
     <div class="topbar-right">
+      <span id="session-status" class="session-status" role="status">Checking session…</span>
+      <form id="login-form" class="toolbar hidden">
+        <label class="field">Access token <input id="session-token" type="password" autocomplete="current-password" required></label>
+        <button type="submit" id="login-btn" class="btn btn-small">Sign in</button>
+      </form>
+      <button type="button" id="logout-btn" class="btn btn-small hidden">Sign out</button>
+      <button type="button" id="session-retry" class="btn btn-small hidden">Retry connection</button>
+      <span id="session-error" class="fail session-error" role="alert"></span>
       <span id="env-pill" class="env-pill">connecting...</span>
       <button type="button" id="run-btn" class="btn btn-ghost" data-admin disabled>Re-run pipeline</button>
     </div>
   </header>
-
-  <div class="session-bar">
-    <span id="session-status" role="status">Checking session…</span>
-    <form id="login-form" class="toolbar hidden">
-      <label class="field">Access token <input id="session-token" type="password" autocomplete="current-password" required></label>
-      <button type="submit" id="login-btn" class="btn btn-small">Sign in</button>
-    </form>
-    <button type="button" id="logout-btn" class="btn btn-small hidden">Sign out</button>
-    <button type="button" id="session-retry" class="btn btn-small hidden">Retry connection</button>
-    <span id="session-error" class="fail" role="alert"></span>
-  </div>
 
   <main id="main-views" class="views hidden">
     <section id="view-overview" class="view" aria-label="Overview">
@@ -56,37 +50,43 @@
         <div class="queue-head">
           <div class="queue-title">Alert queue <span id="queue-count" class="muted"></span></div>
           <form id="queue-search" class="queue-search">
-            <label>Search cases <input id="filter-query" type="search" placeholder="Case, account, dealer or scrip"></label>
-            <div class="queue-filters">
-              <label>Scrip <input id="filter-scrip" type="text" placeholder="e.g. INFY"></label>
-              <label>Dealer ID <input id="filter-dealer" type="text" placeholder="e.g. D1"></label>
-            </div>
-            <div class="toolbar">
+            <div class="queue-q">
+              <label class="sr-only" for="filter-query">Search cases</label>
+              <input id="filter-query" type="search" placeholder="Case, account, dealer or scrip">
               <button type="submit" class="btn btn-small">Search</button>
-              <button type="button" id="queue-clear" class="btn btn-small">Clear filters</button>
-              <button type="button" id="queue-export" class="btn btn-small">Export queue CSV</button>
+            </div>
+            <div class="queue-filters">
+              <label>Recommendation
+                <select id="filter-rec">
+                  <option value="">All</option>
+                  <option value="ESCALATE">Escalate</option>
+                  <option value="REVIEW">Review</option>
+                  <option value="DISMISS">Dismiss</option>
+                </select>
+              </label>
+              <label>Status
+                <select id="filter-status">
+                  <option value="">All</option>
+                  <option value="NEW">New</option>
+                  <option value="UNDER_REVIEW">Under review</option>
+                  <option value="INFO_REQUESTED">Info requested</option>
+                  <option value="ESCALATED">Escalated</option>
+                  <option value="CLOSED">Closed</option>
+                </select>
+              </label>
+            </div>
+            <details class="queue-more">
+              <summary>More filters</summary>
+              <div class="queue-filters">
+                <label>Scrip <input id="filter-scrip" type="text" placeholder="e.g. INFY"></label>
+                <label>Dealer ID <input id="filter-dealer" type="text" placeholder="e.g. D1"></label>
+              </div>
+            </details>
+            <div class="queue-tools">
+              <button type="button" id="queue-clear" class="btn btn-link">Clear filters</button>
+              <button type="button" id="queue-export" class="btn btn-link">Export CSV</button>
             </div>
           </form>
-          <div class="queue-filters">
-            <label>Recommendation
-              <select id="filter-rec">
-                <option value="">All</option>
-                <option value="ESCALATE">Escalate</option>
-                <option value="REVIEW">Review</option>
-                <option value="DISMISS">Dismiss</option>
-              </select>
-            </label>
-            <label>Status
-              <select id="filter-status">
-                <option value="">All</option>
-                <option value="NEW">New</option>
-                <option value="UNDER_REVIEW">Under review</option>
-                <option value="INFO_REQUESTED">Info requested</option>
-                <option value="ESCALATED">Escalated</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-            </label>
-          </div>
         </div>
         <ol id="queue-list" class="queue-list" tabindex="0" aria-label="Cases"></ol>
         <div class="queue-foot muted"><kbd>j</kbd> / <kbd>k</kbd> move through the queue</div>

@@ -267,10 +267,9 @@
       state.session = await api("/api/session");
       const session = state.session;
       $("session-status").textContent = !session.auth_required
-        ? (session.public_role ? `Open access · ${session.public_role}. Decisions are recorded in the ledger.`
-          : "Local access · administrator")
-        : session.authenticated ? `Signed in as ${session.reviewer || session.role} · ${session.role}`
-          : "Sign in to access investigations.";
+        ? (session.public_role ? `Open access · ${session.public_role}` : "Local · administrator")
+        : session.authenticated ? `${session.reviewer || session.role} · ${session.role}`
+          : "Sign in to open the investigations";
       applyAccess();
       return canRead();
     } catch (e) {
@@ -348,22 +347,17 @@
     }
     return params.toString();
   }
-  function scoreBar(score) {
-    const fill = h("span");
-    fill.style.width = `${Math.round(Math.max(0, Math.min(1, score)) * 100)}%`;
-    return h("div", { class: "scorebar" }, fill);
-  }
   function queueItem(c) {
     return h("li", { class: "queue-item", role: "button", tabindex: 0, "aria-label": `Open case ${c.case_id}, ${c.scrip}, ${c.status}`,
-      dataset: { caseId: c.case_id }, onclick: () => selectCase(c.case_id), onkeydown: (event) => {
+      title: c.case_id, dataset: { caseId: c.case_id }, onclick: () => selectCase(c.case_id), onkeydown: (event) => {
         if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectCase(c.case_id); }
       } },
-      h("div", { class: "qi-row" }, h("span", { class: "qi-id", text: c.case_id }), recBadge(c.recommendation)),
-      h("div", { class: "qi-main", text: `${c.scrip} · ${c.account_id} ${c.holder_name}` }),
+      h("div", { class: "qi-row" },
+        h("span", { class: "qi-main" }, c.scrip, " ", h("span", { class: "qi-who", text: `${c.account_id} ${c.holder_name}` })),
+        recBadge(c.recommendation)),
       h("div", { class: "qi-row" },
         h("span", { class: "qi-sub", text: `${c.dealer_id} · score ${c.score.toFixed(2)} · ${fmtInr(c.profit_inr)}` }),
-        statusBadge(c.status)),
-      scoreBar(c.score));
+        statusBadge(c.status)));
   }
   function renderQueue() {
     const list = $("queue-list");

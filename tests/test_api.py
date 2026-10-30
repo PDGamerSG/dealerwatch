@@ -237,7 +237,7 @@ def test_eval_endpoint_isolated_from_live_store(client: TestClient) -> None:
 def test_index_static_and_headers(client: TestClient) -> None:
     res = client.get("/")
     assert res.status_code == 200 and "text/html" in res.headers["content-type"]
-    assert "DealerWatch" in res.text and "Front-running investigator. Synthetic data." in res.text
+    assert "DealerWatch" in res.text and "Alert queue" in res.text
     alias = client.get("/app")
     assert alias.status_code == 200 and alias.text == res.text
     assert "default-src 'self'" in res.headers["content-security-policy"]
