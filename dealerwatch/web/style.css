@@ -319,7 +319,7 @@ input[type="file"] { max-width: 100%; color: var(--paper-70); }
 .reject { background: var(--brass-15); border: 1px solid var(--brass-40); color: var(--brass); border-radius: var(--radius); padding: 6px 9px; margin-bottom: 8px; font-size: 12px; }
 
 /* clauses */
-.clause { border-left: 2px solid var(--rule); padding: 4px 0 4px 10px; margin-bottom: 8px; }
+.clause { border-left: 1px solid var(--rule-40); padding: 4px 0 4px 10px; margin-bottom: 10px; }
 .clause:last-child { margin-bottom: 0; }
 .clause-id { font: 500 12px var(--mono); }
 .clause-title { font-weight: 500; }
