@@ -12,7 +12,7 @@ from dealerwatch.detect.sandwich import find_candidates
 from dealerwatch.models import (Account, Call, ChainLink, Clause, Dealer, FundOrder, Link, Recommendation, Side,
                                 Trade, Utterance)
 
-LEAK_TEXT = "Bhai, INFY mein bada order aa raha hai, do baje ke aas paas, 5 lakh shares"
+LEAK_TEXT = "There's a big order coming in INFY around two, 5 lakh shares"
 
 
 def scenario(*, sell_price: float = 1520.0, pre_qty: int = 6000, path: bool = True, call: str | None = "leak",
@@ -30,9 +30,10 @@ def scenario(*, sell_price: float = 1520.0, pre_qty: int = 6000, path: bool = Tr
               price=sell_price, time="2026-09-03T14:10:00"),
     ]
     [candidate] = find_candidates([order], trades)
-    lines = {"leak": [("D1", "Haan bhai, ghar pe sab theek?"), ("P-001", "Sab badhiya."), ("D1", LEAK_TEXT)],
-             "smalltalk": [("D1", "match dekha kal?"), ("P-001", "haan, mast tha"), ("D1", "ghar pe sab theek?")],
-             "other": [("D1", "TCS le lo kal, bada order hai")]}
+    lines = {"leak": [("D1", "Hey, all good at home?"), ("P-001", "All good."), ("D1", LEAK_TEXT)],
+             "smalltalk": [("D1", "did you watch the match yesterday?"), ("P-001", "yeah, it was great"),
+                           ("D1", "all good at home?")],
+             "other": [("D1", "Pick up TCS tomorrow, big order coming")]}
     calls = []
     if call:
         utts = [Utterance(id=f"C-004-u{i:02d}", speaker=s, start_ms=i * 4000, end_ms=i * 4000 + 3000, text=t)

@@ -209,7 +209,7 @@ def test_audit_insert_failure_rolls_back_decision_and_allows_retry(investigation
 def test_snapshot_contains_transcribed_calls_raw_evidence_and_bounded_prices(investigation, monkeypatch):
     data, runtime, store, _ = investigation
     transcript = [{"id": "C-001-u01", "speaker": "D1", "start_ms": 0, "end_ms": 5000,
-                   "text": "INFY le lo, bada order aa raha hai"}]
+                   "text": "Buy INFY, big order coming"}]
     monkeypatch.setattr(asr, "transcribe", lambda *args, **kwargs: (transcript, "test-asr"))
     pipeline.run(str(data), str(runtime), reset=True)
     case = next(c for c in store.list_cases() if c.account.account_id == "A-011")

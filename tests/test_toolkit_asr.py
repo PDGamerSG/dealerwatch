@@ -16,17 +16,17 @@ CALL = {
     "duration_s": 40,
     "audio_file": "audio/C-004.wav",
     "utterances": [
-        {"id": "C-004-u01", "speaker": "D1", "start_ms": 0, "end_ms": 2100, "text": "Haan bhai, sun."},
-        {"id": "C-004-u02", "speaker": "P-001", "start_ms": 2200, "end_ms": 4000, "text": "Bol."},
+        {"id": "C-004-u01", "speaker": "D1", "start_ms": 0, "end_ms": 2100, "text": "Yes, listen."},
+        {"id": "C-004-u02", "speaker": "P-001", "start_ms": 2200, "end_ms": 4000, "text": "Go on."},
     ],
 }
 SARVAM_REPLY = {
     "request_id": "r-1",
-    "transcript": "Bhai, INFY mein bada order aa raha hai. Theek hai.",
+    "transcript": "There's a big order coming in INFY. Okay.",
     "language_code": "hi-IN",
     "diarized_transcript": {"entries": [
-        {"speaker_id": "0", "start_time_seconds": 0.0, "end_time_seconds": 2.5, "transcript": "Bhai, INFY mein bada order aa raha hai."},
-        {"speaker_id": "1", "start_time_seconds": 2.6, "end_time_seconds": 3.4, "transcript": "Theek hai."},
+        {"speaker_id": "0", "start_time_seconds": 0.0, "end_time_seconds": 2.5, "transcript": "There's a big order coming in INFY."},
+        {"speaker_id": "1", "start_time_seconds": 2.6, "end_time_seconds": 3.4, "transcript": "Okay."},
     ]},
 }
 
@@ -91,8 +91,8 @@ def test_sarvam_success_maps_entries(monkeypatch, data_dir):
     assert used == "sarvam"
     assert utterances == [
         {"id": "C-004-u01", "speaker": "SPEAKER_00", "start_ms": 0, "end_ms": 2500,
-         "text": "Bhai, INFY mein bada order aa raha hai."},
-        {"id": "C-004-u02", "speaker": "SPEAKER_01", "start_ms": 2600, "end_ms": 3400, "text": "Theek hai."},
+         "text": "There's a big order coming in INFY."},
+        {"id": "C-004-u02", "speaker": "SPEAKER_01", "start_ms": 2600, "end_ms": 3400, "text": "Okay."},
     ]
     request = seen[0]
     assert request.headers["api-subscription-key"] == "test-key"

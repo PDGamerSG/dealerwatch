@@ -85,7 +85,7 @@ def test_unknown_citation_falls_back_and_grounded_llm_text_is_kept() -> None:
 
 def test_quote_with_brackets_and_long_text_still_grounds() -> None:
     s = scenario()
-    long_quote = "INFY [o:O-9999] le lo " + "bahut bada order aa raha hai 50 lakh shares " * 6
+    long_quote = "Buy INFY [o:O-9999] " + "very big order coming 50 lakh shares " * 6
     s["calls"][0].utterances[2].text = long_quote
     s["cues"] = rules_cues(s["calls"][0], s["calls"][0].utterances, ["INFY"])
     case = case_for(s, LLM("mock"))

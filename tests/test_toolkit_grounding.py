@@ -9,7 +9,7 @@ EVIDENCE_TEXT = (
     "pre trade T-000123 account A-011 BUY qty 1200 price 1520.25 time 2026-09-03T13:05:30\n"
     "post trade T-000150 account A-011 SELL qty 1200 price 1672.2 time 2026-09-03T14:20:00\n"
     "profit_inr 182345.5 score 0.85 hit_count 2\n"
-    "utterance C-004-u07: Bhai, INFY mein bada order aa raha hai, do baje ke aas paas, 5 lakh shares\n"
+    "utterance C-004-u07: There's a big order coming in INFY around two, 5 lakh shares\n"
 )
 IDS = {"O-0001", "T-000123", "T-000150", "A-011", "C-004", "C-004-u07", "PFUTP-4-2-q"}
 VALID = (

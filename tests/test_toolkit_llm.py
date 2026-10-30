@@ -12,7 +12,7 @@ SCHEMA = {
     "required": ["cues"],
     "properties": {"cues": {"type": "array", "items": {"type": "object", "required": ["utterance_id", "quote"]}}},
 }
-GOOD = {"cues": [{"utterance_id": "C-001-u02", "quote": "INFY mein bada order"}]}
+GOOD = {"cues": [{"utterance_id": "C-001-u02", "quote": "big order coming in INFY"}]}
 FALLBACK = {"cues": [], "source": "fallback"}
 
 

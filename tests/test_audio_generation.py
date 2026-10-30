@@ -34,9 +34,9 @@ def call_path(tmp_path: Path) -> Path:
         "start_time": "2026-09-01T10:00:00", "duration_s": 12, "audio_file": None,
         "utterances": [
             {"id": "C-001-u01", "speaker": "D1", "start_ms": 200, "end_ms": 5000,
-             "text": "INFY le lo; $(touch should-never-exist) `hello`"},
+             "text": "Buy INFY; $(touch should-never-exist) `hello`"},
             {"id": "C-001-u02", "speaker": "P-001", "start_ms": 5500, "end_ms": 11000,
-             "text": "--voice=unsafe TCS aur LT bhi?"},
+             "text": "--voice=unsafe TCS and LT too?"},
         ],
     }), encoding="utf-8")
     return path
@@ -78,7 +78,7 @@ def test_macos_renders_with_installed_voice_fallbacks_and_safe_text(monkeypatch,
     after = json.loads(call_path.read_text())
     used_voices = [args[args.index("-v") + 1] for args in commands if args[0] == "say" and "-o" in args]
     assert used_voices == list(expected)
-    assert spoken_text == ["Infy le lo; $(touch should-never-exist) `hello`", "--voice=unsafe T C S aur L and T bhi?"]
+    assert spoken_text == ["Buy Infy; $(touch should-never-exist) `hello`", "--voice=unsafe T C S and L and T too?"]
     assert [u["text"] for u in after["utterances"]] == [u["text"] for u in before["utterances"]]
     assert after["audio_file"] == "audio/C-001.wav" and after["duration_s"] == 2
     assert [(u["start_ms"], u["end_ms"]) for u in after["utterances"]] == [(300, 400), (750, 850)]

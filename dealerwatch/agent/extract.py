@@ -13,15 +13,26 @@ from typing import Any, Protocol
 from dealerwatch import config
 from dealerwatch.models import Call, LeakCue, Side, Utterance
 
-BUY_RE = re.compile(r"\b(?:le\s+lo|lelo|khareed\w*|buy\w*|uthao|utha\s+lo)\b", re.I)
-SELL_RE = re.compile(r"\b(?:bech\w*|nikal\w*|sell\w*)\b", re.I)
-SIZE_NUM_RE = re.compile(r"\d+(?:\.\d+)?\s*(?:lakh|lac|crore|k)\b(?:\s+shares)?|\d[\d,]*\s+shares\b", re.I)
-SIZE_WORD_RE = re.compile(r"\bbada\s+order\b|\blakh\b|\bshares\b", re.I)
+BUY_RE = re.compile(
+    r"\b(?:buy\w*|bought|pick(?:ing)?\s+(?:\w+\s+)?up|load(?:ing)?\s+up|go(?:ing)?\s+long|get(?:ting)?\s+into"
+    r"|accumulat\w*)\b", re.I)
+SELL_RE = re.compile(
+    r"\b(?:sell\w*|sold|dump\w*|offload\w*|unload\w*|exit\w*|get(?:ting)?\s+out(?:\s+of)?|go(?:ing)?\s+short"
+    r"|short(?:ing)?\s+(?:it|them))\b", re.I)
+SIZE_NUM_RE = re.compile(
+    r"\d+(?:\.\d+)?\s*(?:lakh|lac|crore|k|million|mn)\b(?:\s+shares)?|\d[\d,]*\s+shares\b", re.I)
+SIZE_WORD_RE = re.compile(
+    r"\b(?:big|large|huge|sizeable|massive)\s+(?:\w+\s+)?order\b|\blakh\b|\bcrore\b|\bshares\b", re.I)
+_HOUR_WORDS = r"\d{1,2}:\d{2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midday|lunch"
 TIME_RE = re.compile(
-    r"\b(?:\d{1,2}(?::\d{2})?|ek|do|teen|chaar|char|paanch|panch|chhe|saat|aath|nau|das|gyarah|barah)\s+baje\b"
-    r"|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\b(?:baje|pm|am|kal|aaj)\b",
+    r"\b(?:around|about|by|before|after|at|till|until)\s+(?:half\s+past\s+|quarter\s+(?:past|to)\s+)?"
+    rf"(?:{_HOUR_WORDS})\b"
+    r"|\b\d{1,2}:\d{2}\b|\b\d{1,2}(?::\d{2})?\s*(?:am|pm|o'?clock)\b"
+    r"|\b(?:today|tomorrow|tonight|this\s+(?:morning|afternoon)|lunchtime|first\s+thing|at\s+the\s+(?:open|close))\b",
     re.I)
-DESK_RE = re.compile(r"\bhumara\s+desk\b|\bfunds?\b|\border\s+aa\s+raha\b", re.I)
+DESK_RE = re.compile(
+    r"\b(?:our|the)\s+desk\b|\bfunds?\b|\border\s+(?:is\s+)?(?:coming|going\s+in|goes\s+in)\b"
+    r"|\bwe(?:'re|\s+are)\s+(?:buying|selling)\b", re.I)
 
 SYSTEM_PROMPT = (
     "You extract leak cues from a dealer's phone call for a mutual-fund compliance team. "
@@ -124,7 +135,7 @@ def _has_hint(h: dict[str, Any]) -> bool:
 
 
 def _has_strong_hint(h: dict[str, Any]) -> bool:
-    """Side, size or desk hint; a bare time word ('kal', 'aaj') is too common to carry across turns."""
+    """Side, size or desk hint; a bare time word ('today', 'tomorrow') is too common to carry across turns."""
     return bool(h["side"] or h["qty_hint"] or h["desk"])
 
 
