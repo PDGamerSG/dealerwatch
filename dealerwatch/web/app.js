@@ -266,7 +266,9 @@
     try {
       state.session = await api("/api/session");
       const session = state.session;
-      $("session-status").textContent = !session.auth_required ? "Local access · administrator"
+      $("session-status").textContent = !session.auth_required
+        ? (session.public_role ? `Open access · ${session.public_role}. Decisions are recorded in the ledger.`
+          : "Local access · administrator")
         : session.authenticated ? `Signed in as ${session.reviewer || session.role} · ${session.role}`
           : "Sign in to access investigations.";
       applyAccess();

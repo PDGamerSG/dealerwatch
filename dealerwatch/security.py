@@ -32,7 +32,13 @@ class Security:
         self.reviewer = os.environ.get("DW_REVIEWER_TOKEN", "").strip()
         if self.admin and self.admin == self.reviewer:
             raise ValueError("Admin and reviewer tokens must be different")
-        self.required = bool(self.admin or self.reviewer)
+        # DW_PUBLIC_ROLE=reviewer lets anonymous visitors review cases while admin
+        # actions still need the administrator token (used by the hosted demo).
+        self.public_role = os.environ.get("DW_PUBLIC_ROLE", "").strip().lower()
+        if self.public_role not in {"", "reviewer"}:
+            raise ValueError("DW_PUBLIC_ROLE must be empty or reviewer")
+        self.configured = bool(self.admin or self.reviewer)
+        self.required = self.configured and not self.public_role
         self.sessions: dict[str, tuple[float, Principal]] = {}
         self.attempts: dict[str, list[float]] = {}
         self.lock = threading.RLock()
@@ -45,7 +51,7 @@ class Security:
         return None
 
     def principal(self, request: Request) -> Principal | None:
-        if not self.required:
+        if not self.configured:
             return Principal("admin", None, False)
         authorization = request.headers.get("Authorization", "")
         if authorization:
@@ -57,6 +63,8 @@ class Security:
             if value and value[0] > time.monotonic():
                 return value[1]
             self.sessions.pop(session_id, None)
+        if self.public_role:
+            return Principal(self.public_role, None, False)
         return None
 
     def require(self, request: Request, role: str | None = None) -> Principal:
@@ -71,6 +79,7 @@ class Security:
         principal = self.principal(request)
         return {"auth_required": self.required, "authenticated": bool(principal and principal.authenticated),
                 "role": principal.role if principal else None, "reviewer": principal.reviewer if principal else None,
+                "public_role": self.public_role or None,
                 "demo_enabled": os.environ.get("DW_DEMO", "0") == "1"}
 
     def login(self, request: Request, token: str) -> tuple[str, Principal]:

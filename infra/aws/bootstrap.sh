@@ -3,6 +3,7 @@
 #   sudo bash infra/aws/bootstrap.sh /srv/dealerwatch/aws.env
 # Keep the environment file outside this checkout, with these keys:
 #   PUBLIC_IP, DW_ADMIN_TOKEN, DW_REVIEWER_TOKEN, DW_PUBLIC_ORIGINS
+#   Optional: DW_PUBLIC_ROLE=reviewer opens the console to anonymous reviewers.
 # DW_PUBLIC_ORIGINS is a comma-separated list of exact HTTPS origins.
 # DW_DEMO defaults to 0. TCP 80 and 443 must be open in the AWS firewall.
 # This script deploys locally on the VM; it does not create AWS resources.
@@ -93,6 +94,8 @@ for origin in env.get("DW_PUBLIC_ORIGINS", "").split(","):
         sys.exit("DW_PUBLIC_ORIGINS must contain exact HTTPS origins without paths or wildcards.")
 if env.get("DW_DEMO") not in ("0", "1"):
     sys.exit("DW_DEMO must be 0 or 1; leave it at 0 for ordinary operation.")
+if env.get("DW_PUBLIC_ROLE", "") not in ("", "reviewer"):
+    sys.exit("DW_PUBLIC_ROLE must be empty or reviewer.")
 print("Deployment configuration is valid.")
 '
 

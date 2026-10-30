@@ -20,6 +20,7 @@ services:
       DW_ADMIN_TOKEN: ${DW_ADMIN_TOKEN:?Set a distinct administrator token}
       DW_REVIEWER_TOKEN: ${DW_REVIEWER_TOKEN:?Set a distinct reviewer token}
       DW_PUBLIC_ORIGINS: ${DW_PUBLIC_ORIGINS:?Set the exact HTTPS frontend origin}
+      DW_PUBLIC_ROLE: ${DW_PUBLIC_ROLE:-}
     volumes:
       - /srv/dealerwatch/data:/data
     ports:
