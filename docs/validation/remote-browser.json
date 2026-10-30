@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "url": "https://dealerwatch-j26smpxmy-pallab-das-projects-d3f377fd.vercel.app",
+  "tests": 2,
+  "failures": 0,
+  "errors": 0,
+  "seconds": 65.367,
+  "workflows": [
+    {
+      "name": "test_complete_investigation_workflow",
+      "seconds": 54.209
+    },
+    {
+      "name": "test_mobile_tabs_and_authenticated_reviewer",
+      "seconds": 11.117
+    }
+  ],
+  "mode": "DW_DEMO=1 for disposable synthetic testing; disabled after final data setup"
+}

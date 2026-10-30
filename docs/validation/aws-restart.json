@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-10-30T06:42:21.598271+00:00",
+  "status": "passed",
+  "backend": "https://3.107.131.107",
+  "case_state_preserved": true,
+  "case_revision": 1,
+  "decisions": 1,
+  "runs_preserved": 9,
+  "ledger": {
+    "ok": true,
+    "checked": 99,
+    "first_bad_seq": null,
+    "reason": null
+  }
+}

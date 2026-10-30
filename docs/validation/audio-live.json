@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "url": "https://dealerwatch-j26smpxmy-pallab-das-projects-d3f377fd.vercel.app",
+  "audio": {
+    "C-001": {
+      "bytes": 1071272,
+      "duration_seconds": 33.48,
+      "digest_verified": true
+    },
+    "C-021": {
+      "bytes": 1246878,
+      "duration_seconds": 38.96,
+      "digest_verified": true
+    },
+    "C-014": {
+      "bytes": 1201350,
+      "duration_seconds": 37.54,
+      "digest_verified": true
+    },
+    "C-006": {
+      "bytes": 1180574,
+      "duration_seconds": 36.89,
+      "digest_verified": true
+    },
+    "C-018": {
+      "bytes": 1019342,
+      "duration_seconds": 31.85,
+      "digest_verified": true
+    },
+    "C-022": {
+      "bytes": 904176,
+      "duration_seconds": 28.25,
+      "digest_verified": true
+    },
+    "C-003": {
+      "bytes": 997466,
+      "duration_seconds": 31.17,
+      "digest_verified": true
+    }
+  }
+}

@@ -16,7 +16,7 @@ Add the exact resulting Vercel URL to `DW_PUBLIC_ORIGINS` on the backend and rec
 
 ## AWS
 
-Use one Ubuntu 24.04 Lightsail instance, a static IPv4 address, and persistent disk. The intended Mumbai 2 GB plan is $12/month before credits, taxes and additional usage; check the bundle price and account eligibility before provisioning. The application must have only one worker/replica.
+Use one Ubuntu 24.04 Lightsail instance, a static IPv4 address, and persistent disk. The hosted instance is `dealerwatch-api` in `ap-southeast-2` with the `micro_3_2` Linux bundle (1 GB RAM, $7/month before credits, taxes and additional usage); the account's organization policy rejected the 2 GB bundle and disallowed `ap-south-1`. The application runs as one worker/replica with a 2 GB swap file.
 
 The AWS configuration is in `infra/aws/`. Copy source to the instance, install a private environment file at `/srv/dealerwatch/aws.env`, then run `sudo bash infra/aws/bootstrap.sh /srv/dealerwatch/aws.env` from that checkout. Required environment values are `PUBLIC_IP`, distinct `DW_ADMIN_TOKEN` and `DW_REVIEWER_TOKEN` of at least 32 characters, and the exact `DW_PUBLIC_ORIGINS`. Set `DW_COOKIE_SECURE=1`, `DW_LLM=mock`, `DW_ASR=replay` and `DW_DEMO=0` for the default hosted synthetic application. Secrets must not be committed or pasted into shell logs.
 
@@ -40,3 +40,11 @@ Read-only live checks use `scripts/check_deployment.py` and a token supplied by 
 Vercel deployment protection, if enabled, is separate from the application's login. The verification tools accept a protection bypass token by environment; neither token is written to reports. Never share bypass tokens or publicize them in URLs.
 
 Live hosted LLM/transcription behavior requires separately configured provider credentials. Mock/replay mode supports the complete evidence/review workflow without those services.
+
+## Current hosted deployment
+
+The stable frontend is [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/), and the durable backend origin is `https://3.107.131.107`. Vercel's `DW_BACKEND_URL` points to that AWS origin; AWS allows the stable URL and the deployment preview URL in `DW_PUBLIC_ORIGINS`. The backend has `DW_DEMO=0`, so tamper and restore demonstrations are disabled for the retained hosted data.
+
+The hosted account uses private server-side administrator and reviewer tokens from `/srv/dealerwatch/aws.env`; they are not stored in Git, Vercel output, or these reports. The instance has ports 80/443 open and SSH restricted to the operator address. A verified backup is stored under `/srv/dealerwatch/backups/` on the instance.
+
+Live evidence is recorded in [AWS checks](validation/aws-final.json), [Vercel checks](validation/vercel-final.json), [browser workflows](validation/remote-browser.json), [hardened reviewer/audio workflow](validation/hardened-browser.json), [audio integrity](validation/audio-live.json), and [restart persistence](validation/aws-restart.json).
