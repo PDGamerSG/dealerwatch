@@ -101,13 +101,14 @@ Copy `.env.example` to `.env` and launch with `./scripts/dev.sh`, or use `uv run
 | `DW_ASR` | `replay` | `replay` or `sarvam` |
 | `DW_DEMO` | `0` | Enables destructive ledger demonstration controls |
 | `DW_ADMIN_TOKEN`, `DW_REVIEWER_TOKEN` | Unset | Distinct operator access tokens; either enables authentication |
+| `DW_PUBLIC_ROLE` | Unset | `reviewer` lets anonymous visitors review cases while admin actions keep requiring the administrator token |
 | `DW_MAX_BODY_BYTES` | `33554432` | 32 MiB upload limit |
 
 Optional external providers retain deterministic fallbacks if unavailable. Hosted models need their own API keys; Sarvam needs `SARVAM_API_KEY`. The current local machine has no Ollama model installed, so live provider quality/latency is not part of the verified offline results.
 
 Run **one application worker per runtime directory**. Keep the case and ledger databases in SQLite rollback journal mode; attached transactions use SQLite's super-journal for atomic commits. Do not enable WAL for these two databases. Back up the complete runtime directory while the server is stopped, together with the original source dataset. Restore that complete set, then verify the ledger.
 
-Local mode without tokens grants administrator access and binds to loopback. For network use, configure distinct tokens, TLS, an appropriate reverse proxy, and `DW_COOKIE_SECURE=1`. The application is a single-tenant hackathon system, not a production financial surveillance deployment.
+Local mode without tokens grants administrator access and binds to loopback. For network use, configure distinct tokens, TLS, an appropriate reverse proxy, and `DW_COOKIE_SECURE=1`; add `DW_PUBLIC_ROLE=reviewer` only when the console should open to the public as a reviewer, as the hosted synthetic demo does. The application is a single-tenant hackathon system, not a production financial surveillance deployment.
 
 ## Landing page
 
