@@ -10,7 +10,7 @@ const BARS = isMobile ? 120 : 200;
 const RADIUS = 1.1;
 const X = isMobile ? 0 : 2.45;
 // on phones the copy fills the lower two thirds, so the ring sits in the band above it
-const Y = isMobile ? 1.9 : 0.35;
+const Y = isMobile ? 2.15 : 0.35;
 
 /**
  * A ring of bars behaves like a recorded call: silence, speech, then the
@@ -67,7 +67,7 @@ export function Waveform() {
   });
 
   return (
-    <group ref={group} position={[X, Y, -0.4]} userData={{ baseScale: isMobile ? 0.6 : 1, baseY: Y }}>
+    <group ref={group} position={[X, Y, -0.4]} userData={{ baseScale: isMobile ? 0.55 : 1, baseY: Y }}>
       <instancedMesh ref={inst} args={[undefined, undefined, BARS]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial roughness={0.55} metalness={0.05} />
