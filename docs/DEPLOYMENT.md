@@ -8,14 +8,17 @@ The repository's `vercel.json` runs `node scripts/build_vercel.mjs`. Set `DW_BAC
 
 ```bash
 npx vercel link --project dealerwatch
-DW_BACKEND_URL=https://<backend-origin>/ node scripts/build_vercel.mjs
-npx vercel deploy --prebuilt --prod --yes
-npx vercel alias set <deployment-url> dealerwatch-pallab-das-projects-d3f377fd.vercel.app
+git push origin main
 ```
 
-The project is not connected to GitHub, so pushing to `main` does not deploy by itself. Building locally and deploying the prebuilt output keeps the backend origin out of Vercel's production environment (the `DW_BACKEND_URL` variable exists only for previews) and bakes it into the proxy routes. The final step moves the stable alias to the new deployment; `vercel domains add dealerwatch-pallab-das-projects-d3f377fd.vercel.app dealerwatch` would make it follow production automatically.
+The Vercel project `dealerwatch` is connected to the GitHub repository `PDGamerSG/dealerwatch`; every push to `main` builds in Vercel and becomes the production deployment, and other branches get preview deployments. `DW_BACKEND_URL` is set for both Production and Preview, and the stable domain below is attached to the project, so it follows each production deployment. The build installs the landing page's dependencies itself (`vercel.json` disables Vercel's install step); on a build host `npm ci --include=dev` is required because `NODE_ENV` is `production`.
 
-Add the exact resulting Vercel URL to `DW_PUBLIC_ORIGINS` on the backend and recreate the backend container. The setting is a comma-separated list of HTTPS origins; wildcards are rejected. Backend account tokens are never included in frontend JavaScript or Vercel build output. API and audio requests pass through external HTTPS rewrites with caching disabled.
+A deployment can also be produced from a checkout without Git: build locally, deploy the prebuilt output, and let the attached domain follow it.
+
+```bash
+DW_BACKEND_URL=https://<backend-origin>/ node scripts/build_vercel.mjs
+npx vercel deploy --prebuilt --prod --yes
+```
 
 ## AWS
 
@@ -46,7 +49,7 @@ Live hosted LLM/transcription behavior requires separately configured provider c
 
 ## Current hosted deployment
 
-The stable frontend is [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/), serving the landing page at `/` and the reviewer console at `/app`; the durable backend origin is `https://3.107.131.107`. Vercel's automatic production domain `dealerwatch.vercel.app` receives the same build but is not listed in `DW_PUBLIC_ORIGINS`. Vercel's `DW_BACKEND_URL` points to that AWS origin; AWS allows the stable URL and the deployment preview URL in `DW_PUBLIC_ORIGINS`. The backend has `DW_DEMO=0`, so tamper and restore demonstrations are disabled for the retained hosted data.
+The stable frontend is [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/), serving the landing page at `/` and the reviewer console at `/app`; the durable backend origin is `https://3.107.131.107`. Vercel's automatic production domain `dealerwatch.vercel.app` serves the same deployment but is not listed in `DW_PUBLIC_ORIGINS`, so sign-in works only on the stable domain. Vercel's `DW_BACKEND_URL` points to that AWS origin; AWS allows the stable URL and the deployment preview URL in `DW_PUBLIC_ORIGINS`. The backend has `DW_DEMO=0`, so tamper and restore demonstrations are disabled for the retained hosted data.
 
 The hosted account uses private server-side administrator and reviewer tokens from `/srv/dealerwatch/aws.env`; they are not stored in Git, Vercel output, or these reports. The instance has ports 80/443 open and SSH restricted to the operator address. A verified backup is stored under `/srv/dealerwatch/backups/` on the instance.
 
