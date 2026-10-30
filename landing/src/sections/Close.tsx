@@ -3,7 +3,7 @@ import { useStationSection } from "../lib/use-station-section";
 import { rowText, tapeRows } from "../lib/tape-data";
 import { Marquee } from "../ui/Marquee";
 import { MagneticButton } from "../ui/MagneticButton";
-import { REPO_URL } from "../ui/Nav";
+import { APP_URL, REPO_URL } from "../ui/Nav";
 import { SplitHeading } from "../ui/SplitHeading";
 
 const CMD = "uv run --frozen python -m dealerwatch";
@@ -37,8 +37,11 @@ export function Close() {
             127.0.0.1:8077. Existing cases and decisions are preserved across runs.
           </p>
           <div className="close__links">
-            <MagneticButton className="btn btn--solid" href={REPO_URL} target="_blank" rel="noreferrer">
+            <MagneticButton className="btn btn--solid" href={APP_URL}>
               <span className="btn__dot" />
+              Open the live console
+            </MagneticButton>
+            <MagneticButton className="btn" href={REPO_URL} target="_blank" rel="noreferrer">
               View repository
             </MagneticButton>
             <MagneticButton className="btn" href={`${REPO_URL}/blob/main/ARCHITECTURE.md`} target="_blank" rel="noreferrer">

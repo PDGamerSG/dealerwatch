@@ -13,6 +13,8 @@ const LINKS: { id: Station; label: string }[] = [
 ];
 
 export const REPO_URL = "https://github.com/PDGamerSG/dealerwatch";
+/** The reviewer console. On the hosted site it is served next to this page at /app. */
+export const APP_URL: string = import.meta.env.VITE_APP_URL ?? "/app";
 
 export function Nav() {
   const active = useScrollUI((s) => s.active);
@@ -52,8 +54,8 @@ export function Nav() {
         ))}
       </div>
       <div className="nav__end">
-        <MagneticButton className="btn btn--small" href={REPO_URL} target="_blank" rel="noreferrer">
-          View repository
+        <MagneticButton className="btn btn--small" href={APP_URL}>
+          Open the console
         </MagneticButton>
       </div>
     </nav>

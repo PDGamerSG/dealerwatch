@@ -1,10 +1,10 @@
 # Vercel frontend and AWS backend
 
-Vercel serves the basic frontend and proxies API/audio requests to one AWS-hosted Docker application. AWS keeps SQLite databases, imported datasets, archived audio and run history on persistent disk. This preserves the tested single-worker transaction and job behavior.
+Vercel serves the landing page and the reviewer console and proxies API/audio requests to one AWS-hosted Docker application. AWS keeps SQLite databases, imported datasets, archived audio and run history on persistent disk. This preserves the tested single-worker transaction and job behavior.
 
 ## Vercel
 
-The repository's `vercel.json` runs `node scripts/build_vercel.mjs`. Set `DW_BACKEND_URL` in the Vercel project's build environment to the AWS backend's **HTTPS origin**, without a path, credentials or query string. The build emits only `index.html`, JavaScript and CSS to the static directory. The source repository, environment files and local generated/runtime data are not publicly served.
+The repository's `vercel.json` runs `node scripts/build_vercel.mjs`. Set `DW_BACKEND_URL` in the Vercel project's build environment to the AWS backend's **HTTPS origin**, without a path, credentials or query string. The build installs and builds the landing page in `landing/` (reusing an existing `landing/dist/`), publishes it at `/`, and serves the reviewer console at `/app` with its JavaScript, CSS and self-hosted fonts under `/static/`. The source repository, environment files and local generated/runtime data are not publicly served.
 
 ```bash
 npx vercel link --project dealerwatch

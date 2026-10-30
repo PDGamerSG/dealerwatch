@@ -1,6 +1,8 @@
-// Vercel serves the basic UI and proxies API/audio to the durable AWS backend.
+// Vercel serves the landing page at /, the reviewer console at /app and proxies
+// API/audio requests to the durable AWS backend.
 import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 let backend;
 try {
@@ -12,10 +14,30 @@ try {
   process.exit(1);
 }
 
+// The landing page (landing/) is a Vite app built with a relative base, so its
+// dist/ can sit at the site root. A prebuilt dist/ is reused; otherwise it is
+// built here with dev dependencies, because Vercel sets NODE_ENV=production.
+const landingDist = join('landing', 'dist');
+if (!existsSync(join(landingDist, 'index.html'))) {
+  if (!existsSync(join('landing', 'package.json'))) {
+    console.error('landing/ is missing; the site root needs the landing page build.');
+    process.exit(1);
+  }
+  for (const args of [['ci', '--include=dev', '--prefix', 'landing'], ['run', 'build', '--prefix', 'landing']]) {
+    const result = spawnSync('npm', args, { stdio: 'inherit' });
+    if (result.status !== 0) {
+      console.error(`npm ${args.join(' ')} failed`);
+      process.exit(1);
+    }
+  }
+}
+
 const output = join(process.cwd(), '.vercel', 'output');
 rmSync(output, { recursive: true, force: true });
 mkdirSync(join(output, 'static', 'static'), { recursive: true });
-copyFileSync('dealerwatch/web/index.html', join(output, 'static/index.html'));
+mkdirSync(join(output, 'static', 'app'), { recursive: true });
+cpSync(landingDist, join(output, 'static'), { recursive: true });
+copyFileSync('dealerwatch/web/index.html', join(output, 'static/app/index.html'));
 for (const name of ['app.js', 'style.css']) {
   copyFileSync(join('dealerwatch/web', name), join(output, 'static/static', name));
 }
@@ -41,7 +63,8 @@ const config = {
     { src: '^/audio/(.*)$', dest: `${backend.origin}/audio/$1` },
     { handle: 'filesystem' },
     { src: '^/$', dest: '/index.html' },
+    { src: '^/app/?$', dest: '/app/index.html' },
   ],
 };
 writeFileSync(join(output, 'config.json'), JSON.stringify(config, null, 2) + '\n');
-console.info('Built DealerWatch static frontend with API/audio proxy routes.');
+console.info('Built DealerWatch landing page, reviewer console and API/audio proxy routes.');

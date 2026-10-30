@@ -14,11 +14,14 @@ function fixture() {
   writeFileSync(join(root, 'dealerwatch/web/index.html'), '<script src="/static/app.js"></script>');
   writeFileSync(join(root, 'dealerwatch/web/app.js'), 'console.info("DealerWatch");');
   writeFileSync(join(root, 'dealerwatch/web/style.css'), 'body { color: black; }');
+  mkdirSync(join(root, 'landing/dist/assets'), { recursive: true });
+  writeFileSync(join(root, 'landing/dist/index.html'), '<div id="root"></div><script type="module" src="./assets/index.js"></script>');
+  writeFileSync(join(root, 'landing/dist/assets/index.js'), 'console.info("landing");');
   writeFileSync(join(root, '.env'), 'UNPUBLISHED_SECRET=value');
   return root;
 }
 
-test('build packages static assets and forwards API/audio to the configured HTTPS backend', () => {
+test('build publishes the landing page at /, the console at /app and forwards API/audio to the configured HTTPS backend', () => {
   const root = fixture();
   try {
     const built = spawnSync(process.execPath, [script], {
@@ -32,8 +35,12 @@ test('build packages static assets and forwards API/audio to the configured HTTP
     assert.ok(api && audio);
     assert.equal('/api/cases/CASE-1'.replace(new RegExp(api.src), api.dest), 'https://backend.example.com/api/cases/CASE-1');
     assert.equal('/audio/C-001'.replace(new RegExp(audio.src), audio.dest), 'https://backend.example.com/audio/C-001');
-    assert.match(readFileSync(join(output, 'static/index.html'), 'utf8'), /\/static\/app\.js/);
+    assert.match(readFileSync(join(output, 'static/index.html'), 'utf8'), /id="root"/);
+    assert.match(readFileSync(join(output, 'static/assets/index.js'), 'utf8'), /landing/);
+    assert.match(readFileSync(join(output, 'static/app/index.html'), 'utf8'), /\/static\/app\.js/);
     assert.match(readFileSync(join(output, 'static/static/app.js'), 'utf8'), /DealerWatch/);
+    const console_ = config.routes.find(route => route.dest === '/app/index.html');
+    assert.ok(console_ && new RegExp(console_.src).test('/app') && new RegExp(console_.src).test('/app/'));
     assert.throws(() => readFileSync(join(output, 'static/.env')));
     assert.throws(() => readFileSync(join(output, 'static/dealerwatch/api.py')));
   } finally {
