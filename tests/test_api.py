@@ -242,7 +242,7 @@ def test_index_static_and_headers(client: TestClient) -> None:
     assert alias.status_code == 200 and alias.text == res.text
     assert "default-src 'self'" in res.headers["content-security-policy"]
     assert "access-control-allow-origin" not in res.headers
-    for name in ("app.js", "style.css", "fonts/archivo-latin-wdth-normal.woff2",
+    for name in ("app.js", "style.css", "favicon.svg", "fonts/archivo-latin-wdth-normal.woff2",
                  "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-500-normal.woff2"):
         assert client.get(f"/static/{name}").status_code == 200
     assert client.get("/api/nope").headers["content-type"].startswith("application/json")

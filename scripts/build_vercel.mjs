@@ -38,7 +38,7 @@ mkdirSync(join(output, 'static', 'static'), { recursive: true });
 mkdirSync(join(output, 'static', 'app'), { recursive: true });
 cpSync(landingDist, join(output, 'static'), { recursive: true });
 copyFileSync('dealerwatch/web/index.html', join(output, 'static/app/index.html'));
-for (const name of ['app.js', 'style.css']) {
+for (const name of ['app.js', 'style.css', 'favicon.svg']) {
   copyFileSync(join('dealerwatch/web', name), join(output, 'static/static', name));
 }
 // Self-hosted fonts referenced from style.css; the CSP allows same-origin fonts only.
