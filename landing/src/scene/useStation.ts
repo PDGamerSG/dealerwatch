@@ -60,6 +60,8 @@ export function flag(el: HTMLElement | null, cls: string, on: boolean) {
   }
 }
 
+// Models are plain GLBs. Draco and meshopt decoders are turned off at every useGLTF
+// call so no WebAssembly is compiled; the hosted CSP allows script-src 'self' only.
 export const modelUrl = (name: string) => `${import.meta.env.BASE_URL}models/${name}.glb`;
 
 export function firstMesh(nodes: Record<string, THREE.Object3D>): THREE.Mesh {

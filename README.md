@@ -111,7 +111,7 @@ Local mode without tokens grants administrator access and binds to loopback. For
 
 ## Landing page
 
-`landing/` holds a standalone, scroll-driven marketing page for DealerWatch built with Vite, React Three Fiber and GSAP. It has no backend dependency and uses only synthetic figures. See [landing/README.md](landing/README.md).
+`landing/` holds a standalone, scroll-driven marketing page for DealerWatch built with Vite, React Three Fiber and GSAP. It has no backend dependency and uses only synthetic figures. See [landing/README.md](landing/README.md). The hosted site serves it at [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/) with the reviewer console at `/app`.
 
 ```bash
 cd landing && npm install && npm run dev

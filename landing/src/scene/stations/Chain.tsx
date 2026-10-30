@@ -18,7 +18,7 @@ const elastic = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : Math.pow(2, -10 * x) *
  * step with the horizontal cards below.
  */
 export function Chain() {
-  const { nodes } = useGLTF(modelUrl("chain_link"));
+  const { nodes } = useGLTF(modelUrl("chain_link"), false, false);
   const geometry = useMemo(() => firstMesh(nodes as Record<string, THREE.Object3D>).geometry, [nodes]);
   const { group } = useStation("chain", { lift: 0.3 });
   const slider = useRef<THREE.Group>(null);
@@ -60,4 +60,4 @@ export function Chain() {
   );
 }
 
-useGLTF.preload(modelUrl("chain_link"));
+useGLTF.preload(modelUrl("chain_link"), false, false);

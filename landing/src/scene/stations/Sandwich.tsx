@@ -30,7 +30,7 @@ function seeded(seed: number) {
  * side of it: the sandwich.
  */
 export function Sandwich() {
-  const { nodes } = useGLTF(modelUrl("slab"));
+  const { nodes } = useGLTF(modelUrl("slab"), false, false);
   const slabGeo = useMemo(() => firstMesh(nodes as Record<string, THREE.Object3D>).geometry, [nodes]);
   const { group } = useStation("sandwich");
   const inst = useRef<THREE.InstancedMesh>(null);

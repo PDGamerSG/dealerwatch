@@ -12,7 +12,7 @@ const X = isMobile ? 0 : 1.7;
 
 /** Three frosted panels drift apart, then stack into one as you scroll. */
 export function Panels() {
-  const { nodes } = useGLTF(modelUrl("slab"));
+  const { nodes } = useGLTF(modelUrl("slab"), false, false);
   const geometry = useMemo(() => firstMesh(nodes as Record<string, THREE.Object3D>).geometry, [nodes]);
   const { group } = useStation("gap");
   const slabs = useRef<(THREE.Mesh | null)[]>([]);
@@ -69,4 +69,4 @@ export function Panels() {
   );
 }
 
-useGLTF.preload(modelUrl("slab"));
+useGLTF.preload(modelUrl("slab"), false, false);

@@ -9,7 +9,7 @@ import { firstMesh, modelUrl, useStation } from "../useStation";
 
 /** A brass seal descends, presses, and leaves a red mark behind. */
 export function Seal() {
-  const { nodes } = useGLTF(modelUrl("seal"));
+  const { nodes } = useGLTF(modelUrl("seal"), false, false);
   const geometry = useMemo(() => firstMesh(nodes as Record<string, THREE.Object3D>).geometry, [nodes]);
   const { group } = useStation("decide");
   const seal = useRef<THREE.Mesh>(null);
@@ -54,4 +54,4 @@ export function Seal() {
   );
 }
 
-useGLTF.preload(modelUrl("seal"));
+useGLTF.preload(modelUrl("seal"), false, false);
