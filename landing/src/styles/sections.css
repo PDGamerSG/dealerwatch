@@ -607,14 +607,15 @@
 }
 .footer {
   margin: clamp(56px, 10vh, 120px) calc(-1 * var(--right)) 0 calc(-1 * var(--content));
-  padding: 28px var(--right) 32px var(--content);
+  padding: 22px var(--right) 24px var(--content);
   border-top: 1px solid var(--rule-15);
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px 32px;
+  align-items: baseline;
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--paper-45);
 }
 .footer b {
@@ -623,6 +624,11 @@
 }
 .footer__right {
   text-align: right;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.footer__right:hover {
+  color: var(--paper);
 }
 @media (max-width: 767px) {
   .close__row {

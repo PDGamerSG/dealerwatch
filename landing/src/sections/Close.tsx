@@ -33,8 +33,8 @@ export function Close() {
         </SplitHeading>
         <div className="close__row">
           <p className="body">
-            The command installs locked dependencies, builds the seed 7 universe, validates it, investigates it and serves the reviewer console at
-            127.0.0.1:8077. Existing cases and decisions are preserved across runs.
+            One command installs locked dependencies, builds the seed 7 universe, investigates it and serves the reviewer console on your machine.
+            Cases and decisions survive a re-run.
           </p>
           <div className="close__links">
             <MagneticButton className="btn btn--solid" href={APP_URL}>
@@ -43,12 +43,6 @@ export function Close() {
             </MagneticButton>
             <MagneticButton className="btn" href={REPO_URL} target="_blank" rel="noreferrer">
               View repository
-            </MagneticButton>
-            <MagneticButton className="btn" href={`${REPO_URL}/blob/main/ARCHITECTURE.md`} target="_blank" rel="noreferrer">
-              Read the architecture
-            </MagneticButton>
-            <MagneticButton className="btn" href={`${REPO_URL}/blob/main/EVAL.md`} target="_blank" rel="noreferrer">
-              See the evaluation
             </MagneticButton>
           </div>
           <div className="cmd close__cmd">
@@ -62,15 +56,11 @@ export function Close() {
 
       <footer className="footer">
         <div>
-          <b>DealerWatch</b> is a hackathon rehearsal on synthetic data. Names, accounts, recordings and figures are fictional.
-          <br />
-          Rules recommend. A person escalates. Nothing on this page is investment or legal advice.
+          <b>DealerWatch</b> runs on synthetic data. Names, accounts, recordings and figures are fictional. Not investment or legal advice.
         </div>
-        <div className="footer__right">
-          Seed 7: 40 orders, 2,558 trades, 60 accounts, 25 calls
-          <br />
-          Python 3.12, FastAPI, SQLite, NetworkX, three.js
-        </div>
+        <a className="footer__right" href={REPO_URL} target="_blank" rel="noreferrer">
+          github.com/PDGamerSG/dealerwatch
+        </a>
       </footer>
       <div style={{ margin: "0 calc(-1 * var(--right)) 0 calc(-1 * var(--content))" }}>
         <Marquee className="tape-strip" duration={80} reverse>
