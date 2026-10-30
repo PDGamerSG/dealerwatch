@@ -2,7 +2,7 @@
 
 An end-to-end front-running investigator for a mutual fund compliance team. It connects order and trade patterns, dealer relationships, recorded-call evidence, grounded explanations, and human review. This repository is a **hackathon rehearsal using synthetic data**.
 
-The backend uses FastAPI, SQLite, NetworkX and Python. The intentionally basic frontend uses HTML, CSS and JavaScript with no build step, CDN or external asset dependency. The default demo requires no API keys or network connection after installation.
+The backend uses FastAPI, SQLite, NetworkX and Python. The intentionally basic frontend uses HTML, CSS and JavaScript with no build step, CDN or external asset dependency; it shares the landing page's ink-and-paper palette and ships Archivo and IBM Plex Mono as self-hosted subsets under `dealerwatch/web/fonts`. The default demo requires no API keys or network connection after installation.
 
 ## Start
 
