@@ -10,7 +10,7 @@ The AMC compliance officer. KPI: time from alert to a defensible case file, and 
 
 ## What it does (one vertical slice)
 1. **Detect (code only).** For every large fund order, find accounts that traded the same side shortly before and the opposite side shortly after (a "sandwich"). Deterministic score from repeat count, profit and timing.
-2. **Gather (read-only agent tools).** Pull the dealer's calls in the 3 hours before the order where the other party is in the account's link network. Transcribe (Sarvam code-mixed ASR, or replayed transcripts offline).
+2. **Gather (read-only agent tools).** Pull the dealer's calls in the 3 hours before the order where the other party is in the account's link network. Transcribe the recordings (Sarvam speech-to-text, or replayed transcripts offline).
 3. **Extract (LLM, grounded).** Find leak cues (scrip, side, size, time) in the call. Every cue must cite utterance ids that exist and quote text that is really there; anything else is dropped. Transcripts are treated as untrusted data.
 4. **Link (code).** Graph of dealer -> relative -> shared phone/email/bank/device -> trading account.
 5. **Verify (code).** A 9-link evidence chain: order, pre-trade, post-trade, profit, repeat pattern, link path, call in window, leak cue, clause. Full chain -> recommend ESCALATE; partial -> REVIEW; sandwich only -> DISMISS.
@@ -47,5 +47,5 @@ See `AI_TOOLS.md`.
 
 ## Known gaps
 - Synthetic universe only; real deployment needs the AMC's blotter, recording metadata and KYC feeds.
-- Rules extractor is tuned to Hinglish romanised text; Devanagari transcripts need the LLM path.
+- Rules extractor is tuned to English dealer-desk phrasing; transcripts in other languages need the LLM path.
 - Link graph uses exact matches on shared attributes; fuzzy matching (name, address) is future work.
