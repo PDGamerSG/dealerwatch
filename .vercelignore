@@ -11,7 +11,8 @@ data/generated
 test-results
 .llm_cache
 node_modules
-landing
+landing/node_modules
+landing/dist
 docs
 tests
 infra
