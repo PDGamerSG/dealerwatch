@@ -15,7 +15,7 @@ const COUNT = NOISE + CLUSTER * 2;
 const AXIS_Y = -1.25;
 const X_BUY = -1.75;
 const X_SELL = 1.95;
-const SCALE = isMobile ? 0.48 : 0.78;
+const SCALE = isMobile ? 0.48 : 0.68;
 
 function seeded(seed: number) {
   return () => {
@@ -140,7 +140,7 @@ export function Sandwich() {
     placeLabel("sw-bracket", anchors.current[3], state.camera, state.size, on && bracketOn > 0.6);
   });
 
-  const pos: [number, number, number] = isMobile ? [0.35, 0.9, 0] : [2.7, 0.2, 0];
+  const pos: [number, number, number] = isMobile ? [0.35, 0.9, 0] : [2.25, 0.35, 0];
 
   return (
     <group ref={group} position={pos} userData={{ baseScale: SCALE, baseY: pos[1] }}>

@@ -8,7 +8,7 @@ import { placeLabel } from "../../lib/labels";
 import { firstMesh, modelUrl, useStation } from "../useStation";
 
 const LABELS = ["Recorder", "Blotter", "KYC"];
-const X = isMobile ? 0 : 1.7;
+const X = isMobile ? 0 : 2.55;
 
 /** Three frosted panels drift apart, then stack into one as you scroll. */
 export function Panels() {
@@ -25,7 +25,7 @@ export function Panels() {
     for (let i = 0; i < 3; i++) {
       const m = slabs.current[i];
       if (!m) continue;
-      const spread = (i - 1) * (isMobile ? 1.5 : 2.05);
+      const spread = (i - 1) * (isMobile ? 1.5 : 1.6);
       cur.current[i] += (p - cur.current[i]) * Math.min(1, dt * 5);
       const k = cur.current[i];
       m.position.x = X + spread * (1 - k) + Math.sin(t * 0.6 + i) * 0.05 * (1 - k);
@@ -33,7 +33,8 @@ export function Panels() {
       m.position.y = Math.sin(t * 0.8 + i * 2) * 0.08 * (1 - k) + (i - 1) * 0.06 * k;
       m.rotation.y = (i - 1) * 0.55 * (1 - k) + Math.sin(t * 0.4 + i) * 0.03;
       m.rotation.z = (i - 1) * 0.08 * (1 - k);
-      placeLabel(`panel-${i}`, anchors.current[i], state.camera, state.size, scroll.v.gap > 0.3);
+      // labels only while the panels stand apart; stacked, they would pile up
+      placeLabel(`panel-${i}`, anchors.current[i], state.camera, state.size, scroll.v.gap > 0.3 && scroll.p.gap < 0.6);
     }
   });
 

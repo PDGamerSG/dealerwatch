@@ -46,7 +46,7 @@ export function Chain() {
   });
 
   return (
-    <group ref={group} position={[0, isMobile ? 2.0 : -0.62, 0]} userData={{ baseScale: isMobile ? 0.5 : 0.84, baseY: isMobile ? 2.0 : -0.62 }}>
+    <group ref={group} position={[0, isMobile ? 2.0 : -0.72, 0]} userData={{ baseScale: isMobile ? 0.5 : 0.84, baseY: isMobile ? 2.0 : -0.72 }}>
       <group ref={slider}>
         {Array.from({ length: LINKS }, (_, i) => (
           <mesh key={i} ref={(el) => {

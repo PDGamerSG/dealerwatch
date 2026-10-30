@@ -101,7 +101,7 @@ export function Graph() {
   });
 
   return (
-    <group ref={group} position={isMobile ? [-0.9, 0.7, -0.5] : [0.4, 0, -0.5]} userData={{ baseScale: isMobile ? 0.68 : 1, baseY: isMobile ? 0.7 : 0 }}>
+    <group ref={group} position={isMobile ? [-0.9, 0.7, -0.5] : [1.5, 0.2, -0.5]} userData={{ baseScale: isMobile ? 0.68 : 0.8, baseY: isMobile ? 0.7 : 0.2 }}>
       <instancedMesh ref={nodes} args={[undefined, undefined, N]} frustumCulled={false}>
         <sphereGeometry args={[1, 10, 10]} />
         <meshStandardMaterial color={PAPER} roughness={0.6} opacity={0.75} />

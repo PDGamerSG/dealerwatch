@@ -7,9 +7,9 @@ import { PAPER, STAMP } from "../palette";
 import { useStation } from "../useStation";
 
 const BARS = isMobile ? 120 : 200;
-const RADIUS = 1.65;
-const X = isMobile ? 0 : 2.0;
-const Y = isMobile ? 0.9 : 0.1;
+const RADIUS = 1.1;
+const X = isMobile ? 0 : 2.45;
+const Y = isMobile ? 0.9 : 0.35;
 
 /**
  * A ring of bars behaves like a recorded call: silence, speech, then the
@@ -44,10 +44,10 @@ export function Waveform() {
       const a = (i / BARS) * Math.PI * 2;
       const inCue = Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI) < 0.42; // around angle 0 (right side)
       const voice = 0.5 + 0.5 * Math.sin(t * 7 + i * 0.37) * Math.sin(t * 3.1 + i * 0.11);
-      let target = 0.06 + talk * speech * voice * 0.85;
-      if (inCue) target += cue * (0.5 + 0.35 * Math.sin(t * 9 + i));
+      let target = 0.05 + talk * speech * voice * 0.5;
+      if (inCue) target += cue * (0.3 + 0.2 * Math.sin(t * 9 + i));
       heights[i] += (target - heights[i]) * k;
-      const r = RADIUS + (inCue ? cue * 0.25 : 0);
+      const r = RADIUS + (inCue ? cue * 0.18 : 0);
       dummy.position.set(Math.cos(a) * (r + heights[i] / 2), Math.sin(a) * (r + heights[i] / 2), 0);
       dummy.rotation.set(0, 0, a);
       dummy.scale.set(heights[i], 0.028, 0.028);
@@ -76,7 +76,7 @@ export function Waveform() {
         <meshBasicMaterial color={PAPER} opacity={0.35} />
       </mesh>
       <mesh>
-        <torusGeometry args={[RADIUS + 0.95, 0.004, 8, 160]} />
+        <torusGeometry args={[RADIUS + 0.65, 0.004, 8, 160]} />
         <meshBasicMaterial color={PAPER} opacity={0.12} />
       </mesh>
     </group>
