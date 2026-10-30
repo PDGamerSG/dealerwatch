@@ -1,5 +1,5 @@
 // Vercel serves the basic UI and proxies API/audio to the durable AWS backend.
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 let backend;
@@ -18,6 +18,10 @@ mkdirSync(join(output, 'static', 'static'), { recursive: true });
 copyFileSync('dealerwatch/web/index.html', join(output, 'static/index.html'));
 for (const name of ['app.js', 'style.css']) {
   copyFileSync(join('dealerwatch/web', name), join(output, 'static/static', name));
+}
+// Self-hosted fonts referenced from style.css; the CSP allows same-origin fonts only.
+if (existsSync('dealerwatch/web/fonts')) {
+  cpSync('dealerwatch/web/fonts', join(output, 'static/static/fonts'), { recursive: true });
 }
 const config = {
   version: 3,
