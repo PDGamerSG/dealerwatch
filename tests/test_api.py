@@ -237,17 +237,19 @@ def test_eval_endpoint_isolated_from_live_store(client: TestClient) -> None:
 def test_index_static_and_headers(client: TestClient) -> None:
     res = client.get("/")
     assert res.status_code == 200 and "text/html" in res.headers["content-type"]
-    assert "DealerWatch - front-running investigator (synthetic data)" in res.text
+    assert "DealerWatch" in res.text and "Front-running investigator. Synthetic data." in res.text
     assert "default-src 'self'" in res.headers["content-security-policy"]
     assert "access-control-allow-origin" not in res.headers
-    for name in ("app.js", "style.css"):
+    for name in ("app.js", "style.css", "fonts/archivo-latin-wdth-normal.woff2",
+                 "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-500-normal.woff2"):
         assert client.get(f"/static/{name}").status_code == 200
     assert client.get("/api/nope").headers["content-type"].startswith("application/json")
 
 
 def test_web_files_make_no_external_requests() -> None:
     svg_ns = "http://www.w3.org/2000/svg"  # namespace identifier for createElementNS, never fetched
-    for path in sorted(WEB_DIR.iterdir()):
+    # Only the documents the browser executes; font binaries and their licence are data.
+    for path in sorted(p for p in WEB_DIR.rglob("*") if p.suffix in {".html", ".css", ".js"}):
         text = path.read_text(encoding="utf-8").replace(svg_ns, "")
         urls = set(re.findall(r"https?://[^\s\"'`)<>]+", text))
         assert not urls, f"{path.name} references external URLs: {urls}"

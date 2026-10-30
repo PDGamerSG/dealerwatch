@@ -1,0 +1,9 @@
+Archivo (archivo-latin-wdth-normal.woff2)
+Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+
+IBM Plex Mono (ibm-plex-mono-latin-400-normal.woff2, ibm-plex-mono-latin-500-normal.woff2)
+Copyright 2017 IBM Corp. All rights reserved. (https://github.com/IBM/plex)
+
+Both families are licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+Subsetted latin builds taken from the Fontsource packages used by landing/.
