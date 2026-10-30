@@ -1128,33 +1128,98 @@
   }
 
   // ---------- background investigation runs ----------
+  const STAGES = ["queued", "validating", "loading", "detecting", "investigating", "publishing", "complete"];
+  const isLive = (run) => Boolean(run) && ["QUEUED", "RUNNING"].includes(run.status);
+  const ms = (a, b) => {
+    const x = a ? Date.parse(a) : NaN, y = b ? Date.parse(b) : Date.now();
+    return Number.isFinite(x) && Number.isFinite(y) ? Math.max(0, y - x) : null;
+  };
+  const msText = (v) => (v === null || v === undefined ? "—" : v < 1000 ? `${Math.round(v)} ms` : `${(v / 1000).toFixed(1)} s`);
+  const shortId = (id) => (id ? `${String(id).slice(0, 12)}…` : "—");
+  /** The run the Runs page inspects: a run the user picked, else the live or latest one. */
+  function shownRun() {
+    const picked = state.shownRunId && state.runs.find((run) => run.run_id === state.shownRunId);
+    return picked || state.activeRun;
+  }
+  function stageStrip(run) {
+    const failed = run.status === "FAILED";
+    const at = run.status === "SUCCEEDED" ? STAGES.length : Math.max(0, STAGES.indexOf(run.stage));
+    return h("ol", { class: `stages${failed ? " is-failed" : ""}`, "aria-label": "Pipeline stages" }, STAGES.map((name, i) =>
+      h("li", { class: `stage${i < at ? " is-done" : i === at && isLive(run) ? " is-now" : ""}`, text: name })));
+  }
   function renderRunProgress() {
-    const run = state.activeRun;
+    const run = shownRun();
+    const box = $("run-progress");
+    $("run-heading").textContent = run && run !== state.activeRun ? "Selected run" : isLive(run) ? "Run in progress" : "Latest run";
     if (!run) {
-      $("run-progress").replaceChildren(h("p", { class: "muted", text: "No investigation runs yet. Use Re-run pipeline to start one." }));
+      box.replaceChildren(h("p", { class: "muted", text: "No investigation runs yet. Use Re-run pipeline to start one." }));
       return;
     }
+    const s = run.stats || {};
     const completed = Number(run.completed) || 0, total = Number(run.total) || 0;
-    const children = [h("p", { class: "break-text", text: `${run.run_id} · ${run.status} · ${run.stage || "waiting"}` })];
-    if (runInProgress()) {
+    const children = [
+      h("div", { class: "run-head" },
+        h("div", { class: "run-title" },
+          h("span", { class: `run-status run-${run.status}`, text: run.status }),
+          h("span", { class: "run-id", text: run.run_id })),
+        h("span", { class: "run-when", text: `${run.started_at ? "started" : "queued"} ${dateTime(run.started_at || run.created_at)}${run.finished_at ? ` · finished ${dateTime(run.finished_at)}` : ""}` })),
+      stageStrip(run),
+    ];
+    if (isLive(run)) {
       const progress = h("progress", { max: Math.max(total, 1), "aria-label": "Investigation progress" });
       if (total > 0) progress.value = Math.min(completed, total);
-      children.push(progress, h("span", { class: "small", text: total ? ` ${completed} of ${total}` : " Waiting for progress…" }));
+      children.push(h("div", { class: "run-live" }, progress,
+        h("span", { class: "small mono", text: total ? `${completed} of ${total} candidates · ${run.stage}` : `${run.stage || "waiting"}…` })));
     }
-    if (run.stats) children.push(h("p", { text: `${fmtVal(run.stats.cases)} cases · ${fmtVal(run.stats.escalate)} escalate · ${fmtVal(run.stats.review)} review · ${fmtVal(run.stats.dismiss)} dismiss · ${fmtVal(run.stats.total_ms)} ms` }));
+    children.push(h("div", { class: "kpis run-kpis" },
+      kpi("Cases", fmtVal(s.cases)),
+      kpi("Escalate", fmtVal(s.escalate), s.escalate ? "hot" : ""),
+      kpi("Review", fmtVal(s.review)),
+      kpi("Dismiss", fmtVal(s.dismiss)),
+      kpi("Candidates", fmtVal(s.candidates)),
+      kpi("Pipeline time", s.total_ms !== undefined ? msText(s.total_ms) : msText(ms(run.started_at, run.finished_at)))));
+    children.push(h("div", { class: "ch-facts run-facts" },
+      fact("Inputs", s.orders !== undefined ? `${fmtVal(s.orders)} orders · ${fmtVal(s.trades)} trades · ${fmtVal(s.calls)} calls` : "—"),
+      fact("Dataset", h("span", { class: "mono", title: s.dataset_id || "", text: shortId(s.dataset_id) })),
+      fact("Language model", s.llm_provider ? `${s.llm_provider} · ${fmtVal(s.llm_calls)} calls · ${fmtVal(s.llm_fallbacks)} fallbacks` : "—"),
+      fact("Speech recognition", s.asr_provider || "—"),
+      fact("Queue wait", msText(ms(run.created_at, run.started_at))),
+      fact("Wall clock", msText(ms(run.started_at, run.finished_at))),
+      fact("Stage", run.stage || "—"),
+      fact("Progress", total ? `${completed} of ${total}` : "—")));
     if (run.error) children.push(h("p", { class: "reject", text: `Run failed: ${run.error}` }));
     if (state.runPollErrors) children.push(h("p", { class: "fail", text: "Run updates are unavailable. The investigation may still be running." }));
-    $("run-progress").replaceChildren(...children);
+    box.replaceChildren(...children);
   }
   function renderRunHistory() {
     if (!state.runs.length) {
       $("run-history").replaceChildren(h("p", { class: "muted", text: "No investigation runs have been recorded." }));
       return;
     }
-    $("run-history").replaceChildren(table(["Run", "Status", "Stage", "Progress", "Started", "Finished", "Result"], state.runs.map((run) =>
-      cellsRow([run.run_id, run.status, run.stage || "—", `${run.completed || 0} / ${run.total || 0}`,
-        dateTime(run.started_at || run.created_at), dateTime(run.finished_at) || "—",
-        run.error || (run.stats ? `${fmtVal(run.stats.cases)} cases, ${fmtVal(run.stats.total_ms)} ms` : "—")], 7)), 7));
+    const shown = shownRun();
+    const rows = state.runs.map((run) => {
+      const s = run.stats || {};
+      const tr = cellsRow([
+        h("span", { class: "mono", title: run.run_id, text: shortId(run.run_id) }),
+        h("span", { class: `run-status run-${run.status}`, text: run.status }),
+        dateTime(run.started_at || run.created_at),
+        msText(ms(run.started_at, run.finished_at)),
+        fmtVal(s.cases),
+        s.cases !== undefined ? `${fmtVal(s.escalate)} · ${fmtVal(s.review)} · ${fmtVal(s.dismiss)}` : "—",
+        s.llm_calls !== undefined ? `${fmtVal(s.llm_calls)}${s.llm_fallbacks ? ` (${fmtVal(s.llm_fallbacks)} fallback)` : ""}` : "—",
+        h("span", { class: "mono", title: s.dataset_id || "", text: shortId(s.dataset_id) }),
+        run.error || (run.stats ? "ok" : run.stage || "—"),
+      ], 3, [, , , , , , , , run.error ? "fail" : ""]);
+      tr.classList.add("entry");
+      if (shown && run.run_id === shown.run_id) tr.classList.add("is-shown");
+      tr.tabIndex = 0;
+      tr.setAttribute("aria-label", `Inspect run ${run.run_id}`);
+      const pick = () => { state.shownRunId = run.run_id; renderRunProgress(); renderRunHistory(); };
+      tr.addEventListener("click", pick);
+      tr.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pick(); } });
+      return tr;
+    });
+    $("run-history").replaceChildren(table(["Run", "Status", "Started", "Wall clock", "Cases", "Esc · Rev · Dis", "LLM calls", "Dataset", "Result"], rows, 3));
   }
   function scheduleRunPoll() {
     clearTimeout(state.runTimer);
@@ -1229,6 +1294,7 @@
     applyAccess();
     try {
       const run = await api("/api/runs", { method: "POST" });
+      state.shownRunId = null;
       state.runsRequest += 1;
       $("runs-refresh").disabled = false;
       state.activeRun = run;

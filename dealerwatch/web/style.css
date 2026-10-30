@@ -428,6 +428,40 @@ input[type="file"] { max-width: 100%; color: var(--paper-70); }
 .decision-bar .field { font-size: 12px; }
 .decision-state { font: 12px var(--mono); color: var(--paper-45); white-space: nowrap; flex: 0 0 auto; }
 
+/* runs */
+.run-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.run-title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.run-id { font: 12px var(--mono); color: var(--paper-45); overflow-wrap: anywhere; }
+.run-when { font: 12px var(--mono); color: var(--paper-45); }
+.run-status {
+  display: inline-flex; align-items: center; font: 600 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: var(--pill); background: var(--paper-08); color: var(--paper-70); white-space: nowrap;
+}
+.run-SUCCEEDED { background: var(--rule-15); color: var(--rule); }
+.run-RUNNING, .run-QUEUED { background: var(--brass-15); color: var(--brass); }
+.run-FAILED { background: var(--stamp-15); color: var(--stamp); }
+.stages { list-style: none; margin: 0 0 16px; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.stage {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: var(--pill);
+  border: 1px solid var(--border); font: 500 11.5px var(--mono); color: var(--paper-45);
+}
+.stage::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--graphite-2); }
+.stage.is-done { color: var(--paper-70); border-color: var(--rule-40); }
+.stage.is-done::before { background: var(--rule); }
+.stage.is-now { color: var(--paper); border-color: var(--brass-40); }
+.stage.is-now::before { background: var(--brass); animation: beat .9s ease-in-out infinite alternate; }
+.stages.is-failed .stage:not(.is-done) { color: var(--stamp); border-color: var(--stamp-40); }
+.stages.is-failed .stage:not(.is-done)::before { background: var(--stamp); }
+@keyframes beat { from { opacity: .35; } to { opacity: 1; } }
+.run-live { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.run-live progress { flex: 1; max-width: 420px; height: 6px; accent-color: var(--rule); }
+.run-kpis { margin-bottom: 14px; }
+.kpi-value.hot { color: var(--stamp); }
+.table tr.entry { cursor: pointer; }
+.table tr.entry:hover td { background: var(--ink-2); }
+.table tr.is-shown td { background: var(--ink-3); }
+.table td.fail { font-weight: 500; }
+
 /* ledger */
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sep { width: 1px; height: 24px; background: var(--border-strong); margin: 0 4px; }

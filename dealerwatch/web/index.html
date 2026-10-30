@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DealerWatch</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/static/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
@@ -199,13 +199,21 @@
 
     <section id="view-runs" class="view" aria-label="Runs">
       <div class="page">
-        <div class="card">
-          <div class="card-head"><h2>Investigation runs</h2><button type="button" id="runs-refresh" class="btn btn-small">Refresh run history</button></div>
-          <p class="muted small">Re-run pipeline starts a background investigation of the active dataset and preserves recorded reviewer decisions. A failed run leaves existing cases in place.</p>
+        <div class="card" id="card-run">
+          <div class="card-head">
+            <h2 id="run-heading">Latest run</h2>
+            <div class="toolbar">
+              <button type="button" id="run-retry-poll" class="btn btn-small hidden">Resume run updates</button>
+              <button type="button" id="runs-refresh" class="btn btn-small">Refresh run history</button>
+            </div>
+          </div>
           <div id="run-progress" role="status" aria-live="polite">No run selected.</div>
-          <button type="button" id="run-retry-poll" class="btn btn-small hidden">Resume run updates</button>
         </div>
-        <div class="card"><div class="card-head"><h2>Run history</h2></div><div id="run-history"></div></div>
+        <div class="card">
+          <div class="card-head"><h2>Run history</h2><span class="muted">Select a run to inspect it above</span></div>
+          <p class="muted small">Re-run pipeline investigates the active dataset again in the background and keeps every recorded reviewer decision. A failed run leaves the existing cases in place.</p>
+          <div id="run-history"></div>
+        </div>
       </div>
     </section>
 
