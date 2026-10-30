@@ -27,9 +27,14 @@
   background: var(--rule-15);
 }
 
-/* pinned viewport: copy on the left, the scene shows through on the right */
+/* pinned viewport: copy on the left, the scene shows through on the right.
+   The section is exactly one viewport tall while pinned, so the station
+   padding moves inside .pin__view; otherwise the copy aligned to the bottom
+   lands below the fold for the whole pinned span. */
 .pin {
   position: relative;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 .pin__view {
   position: relative;
@@ -353,6 +358,13 @@
 .verdict .is-dismiss b { color: var(--paper-45); }
 
 /* mobile: native horizontal scroll instead of pinning */
+.chain--mobile {
+  padding-bottom: clamp(56px, 10vh, 120px);
+}
+.chain--mobile .pin__view {
+  height: auto;
+  min-height: 100svh;
+}
 .chain--mobile .chain__track {
   position: relative;
   left: auto;
