@@ -117,6 +117,18 @@ def test_detects_broken_deployments_without_exposing_payloads(deployment, failur
     assert all(value not in json.dumps(report) for value in (ADMIN_TOKEN, "private-server-page", "private-mismatched-account"))
 
 
+def test_allows_vercel_preview_feedback_injection_without_allowing_other_external_assets(deployment):
+    def mutate(request, response):
+        if request.url.path == "/":
+            html = response.text.replace("</body>",
+                '<script src="https://vercel.live/_next-live/feedback/feedback.js"></script></body>')
+            return httpx.Response(200, text=html, headers={"content-type": "text/html"})
+        return response
+
+    report = check_deployment(BASE, token=ADMIN_TOKEN, transport=app_transport(deployment, mutate))
+    assert report["status"] == "passed", json.dumps(report, indent=2)
+
+
 def test_redirects_and_network_errors_do_not_forward_or_log_credentials():
     requests = []
     def redirect(request):

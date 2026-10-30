@@ -65,6 +65,8 @@ def require(condition, message):
 
 
 class FrontendAssets(HTMLParser):
+    VERCEL_FEEDBACK = "https://vercel.live/_next-live/feedback/feedback.js"
+
     def __init__(self):
         super().__init__()
         self.assets = []
@@ -74,7 +76,11 @@ class FrontendAssets(HTMLParser):
         attributes = dict(attrs)
         self.ids.add(attributes.get("id"))
         if tag == "script" and attributes.get("src"):
-            self.assets.append((attributes["src"], "javascript"))
+            source = attributes["src"]
+            # Vercel injects this preview-only helper outside the application bundle.
+            # It is infrastructure-owned and does not represent an app dependency.
+            if source != self.VERCEL_FEEDBACK:
+                self.assets.append((source, "javascript"))
         if tag == "link" and "stylesheet" in (attributes.get("rel") or "").split() and attributes.get("href"):
             self.assets.append((attributes["href"], "css"))
 

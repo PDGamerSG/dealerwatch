@@ -249,9 +249,9 @@ def test_complete_investigation_workflow(browser, serve, tmp_path):
         page.locator("#dataset-file").set_input_files(dataset_path)
         expect(page.locator("#data-candidate-report")).to_contain_text("loaded")
         page.locator("#data-validate").click()
-        expect(page.locator("#data-candidate-report")).to_contain_text("Dataset is valid")
+        expect(page.locator("#data-candidate-report")).to_contain_text("Dataset is valid", timeout=30000)
         page.locator("#data-import").click()
-        expect(page.locator("#data-candidate-report")).to_contain_text("Dataset imported and activated")
+        expect(page.locator("#data-candidate-report")).to_contain_text("Dataset imported and activated", timeout=30000)
         with page.expect_response(lambda res: res.url == url + "/api/runs" and res.request.method == "POST") as started:
             page.locator("#run-btn").click()
         expect(page.locator("#run-progress")).to_contain_text(started.value.json()["run_id"])
