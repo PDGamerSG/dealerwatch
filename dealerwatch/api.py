@@ -294,6 +294,7 @@ def create_app(data_dir: str | os.PathLike | None = None,
         return FileResponse(path, media_type="audio/wav")
 
     @app.get("/", include_in_schema=False)
+    @app.get("/app", include_in_schema=False)  # same path the hosted site uses next to the landing page
     def index():
         return FileResponse(WEB_DIR / "index.html", media_type="text/html")
 

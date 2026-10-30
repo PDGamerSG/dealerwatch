@@ -140,8 +140,9 @@ def check_deployment(url: str, *, token: str | None = None, expected_cases: int 
             passed(auth_required=session["auth_required"], authenticated=session.get("authenticated") is True)
 
             current = "frontend_assets"
+            require(bool(get("/", "text/html").text.strip()), "Front page HTML is empty")
             frontend = FrontendAssets()
-            frontend.feed(get("/", "text/html").text)
+            frontend.feed(get("/app", "text/html").text)
             require({"main-views", "queue-list", "session-token"} <= frontend.ids, "DealerWatch workspace HTML is missing")
             require({kind for _, kind in frontend.assets} == {"javascript", "css"}, "Workspace scripts or stylesheets are missing")
             for source, kind in frontend.assets:

@@ -101,7 +101,7 @@ def test_detects_broken_deployments_without_exposing_payloads(deployment, failur
             else:
                 row["account_id"] = "private-mismatched-account"
             return httpx.Response(200, json=body)
-        if failure == "external_asset" and path == "/":
+        if failure == "external_asset" and path == "/app":
             html = response.text.replace('/static/app.js', 'https://untrusted.example/app.js')
             return httpx.Response(200, text=html, headers={"content-type": "text/html"})
         if failure == "html_asset" and path == "/static/app.js":
@@ -119,7 +119,7 @@ def test_detects_broken_deployments_without_exposing_payloads(deployment, failur
 
 def test_allows_vercel_preview_feedback_injection_without_allowing_other_external_assets(deployment):
     def mutate(request, response):
-        if request.url.path == "/":
+        if request.url.path == "/app":
             html = response.text.replace("</body>",
                 '<script src="https://vercel.live/_next-live/feedback/feedback.js"></script></body>')
             return httpx.Response(200, text=html, headers={"content-type": "text/html"})

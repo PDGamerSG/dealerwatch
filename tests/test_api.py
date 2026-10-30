@@ -238,6 +238,8 @@ def test_index_static_and_headers(client: TestClient) -> None:
     res = client.get("/")
     assert res.status_code == 200 and "text/html" in res.headers["content-type"]
     assert "DealerWatch" in res.text and "Front-running investigator. Synthetic data." in res.text
+    alias = client.get("/app")
+    assert alias.status_code == 200 and alias.text == res.text
     assert "default-src 'self'" in res.headers["content-security-policy"]
     assert "access-control-allow-origin" not in res.headers
     for name in ("app.js", "style.css", "fonts/archivo-latin-wdth-normal.woff2",
