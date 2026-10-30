@@ -364,7 +364,7 @@ input[type="file"] { max-width: 100%; color: var(--paper-70); }
 }
 .cue::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--stamp); flex: 0 0 auto; align-self: center; }
 .cue:hover { background: #fff8ea; transform: translateX(2px); }
-.cue-tags { display: flex; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+.cue-tags { display: flex; gap: 4px; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; }
 .cue-tag { font: 500 10.5px var(--mono); background: transparent; border: 1px solid rgba(7, 11, 20, 0.35); border-radius: 2px; padding: 0 5px; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; }
 .cue-quote { font-style: normal; flex: 1 1 auto; }
 .cue .utt-id { flex: 0 0 auto; white-space: nowrap; color: rgba(7, 11, 20, 0.55); }
@@ -512,7 +512,7 @@ input[type="file"] { max-width: 100%; color: var(--paper-70); }
   .field.grow { flex-basis: 100%; }
   .utt { grid-template-columns: 44px 70px minmax(0, 1fr); gap: 5px; padding: 5px; }
   .cue { flex-wrap: wrap; align-items: flex-start; }
-  .cue-tags { flex-wrap: wrap; min-width: 0; }
+  .cue-tags { flex: 1 1 auto; flex-wrap: wrap; min-width: 0; }
   .cue-quote { order: 2; flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; }
   .cue .utt-id { margin-left: 0; }
   .call-meta { flex-wrap: wrap; }
