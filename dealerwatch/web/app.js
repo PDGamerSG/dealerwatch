@@ -487,19 +487,26 @@
     return h("div", { class: "kpi" }, h("div", { class: "kpi-label", text: name }),
       h("div", { class: `kpi-value ${cls || ""}`, text: value, title: value }));
   }
+  function fact(label, value) {
+    return h("div", { class: "fact" }, h("span", { class: "fact-label", text: label }), h("span", { class: "fact-value" }, value));
+  }
   function renderHeader(d) {
     const c = d.candidate, o = d.order, a = d.account, dl = d.dealer;
     const okCount = d.chain.filter((x) => x.ok).length;
     $("case-header").replaceChildren(
       h("div", { class: "ch-top" },
-        h("span", { class: "ch-title" }, `${c.scrip} · front-running alert`, h("span", { class: "mono", text: d.case_id })),
-        recBadge(d.recommendation), statusBadge(d.status)),
-      h("div", { class: "ch-line" }, "Fund order ",
-        h("strong", { text: `${o.order_id} ${o.side} ${fmtQty(o.qty)} ${o.scrip}` }),
-        ` · ${o.scheme} · received ${dateTime(o.order_time)} · executed ${hhmm(o.exec_start)}–${hhmm(o.exec_end)}`),
-      h("div", { class: "ch-line" }, "Account ",
-        h("strong", { text: `${a.account_id} ${a.holder_name}` }), ` (PAN ${a.pan_masked}) · Dealer `,
-        h("strong", { text: `${dl.dealer_id} ${dl.name}` }), ` · detected ${dateTime(d.created_at)}`),
+        h("h1", { class: "ch-title" }, c.scrip, h("span", { class: "ch-kind", text: "front-running alert" })),
+        h("div", { class: "ch-badges" }, recBadge(d.recommendation), statusBadge(d.status)),
+        h("span", { class: "ch-id", text: d.case_id })),
+      h("div", { class: "ch-facts" },
+        fact("Fund order", h("strong", { text: `${o.order_id} ${o.side} ${fmtQty(o.qty)} ${o.scrip}` })),
+        fact("Scheme", o.scheme),
+        fact("Received", dateTime(o.order_time)),
+        fact("Executed", `${hhmm(o.exec_start)}–${hhmm(o.exec_end)}`),
+        fact("Account", h("strong", { text: `${a.account_id} ${a.holder_name}` })),
+        fact("PAN", a.pan_masked),
+        fact("Dealer", h("strong", { text: `${dl.dealer_id} ${dl.name}` })),
+        fact("Detected", dateTime(d.created_at))),
       h("div", { class: "kpis" },
         kpi("Score", c.score.toFixed(2)),
         kpi("Profit", fmtInr(c.profit_inr), c.profit_inr > 0 ? "pos" : ""),
@@ -743,8 +750,8 @@
   function renderTimeline(d) {
     const box = $("timeline");
     const W = Math.max(560, Math.floor(box.clientWidth || 900));
-    const H = 260;
-    const M = { l: 64, r: 18, t: 46, b: 30 };
+    const H = 300;
+    const M = { l: 68, r: 20, t: 48, b: 32 };
     const t0 = toMs(d.order.order_time);
     const x0 = t0 - 120 * MIN, x1 = t0 + 120 * MIN;
     const pts = d.prices.map((p) => ({ t: toMs(p.time), v: p.close, iso: p.time })).filter((p) => p.t >= x0 && p.t <= x1);
