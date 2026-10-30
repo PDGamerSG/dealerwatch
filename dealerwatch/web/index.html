@@ -11,7 +11,10 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand-mark" href="/">DealerWatch</a>
+    <a class="brand" href="/">
+      <svg class="brand-glyph" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="7" fill="#f2e9d8"/><path d="M6 15.5 15.5 6" stroke="#070b14" stroke-width="2.4" stroke-linecap="round"/><circle cx="16.5" cy="16.5" r="2.2" fill="#e63b2e"/></svg>
+      <span>DealerWatch</span>
+    </a>
     <nav class="tabs" role="tablist" aria-label="Views">
       <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="false">Overview</button>
       <button type="button" class="tab active" role="tab" data-tab="cases" aria-selected="true">Cases</button>
@@ -30,7 +33,7 @@
       <button type="button" id="session-retry" class="btn btn-small hidden">Retry connection</button>
       <span id="session-error" class="fail session-error" role="alert"></span>
       <span id="env-pill" class="env-pill">connecting...</span>
-      <button type="button" id="run-btn" class="btn btn-ghost" data-admin disabled>Re-run pipeline</button>
+      <button type="button" id="run-btn" class="btn btn-primary" data-admin disabled>Re-run pipeline</button>
     </div>
   </header>
 
@@ -51,8 +54,11 @@
           <div class="queue-title">Alert queue <span id="queue-count" class="muted"></span></div>
           <form id="queue-search" class="queue-search">
             <div class="queue-q">
-              <label class="sr-only" for="filter-query">Search cases</label>
-              <input id="filter-query" type="search" placeholder="Case, account, dealer or scrip">
+              <label class="search">
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                <span class="sr-only">Search cases</span>
+                <input id="filter-query" type="search" placeholder="Case, account, dealer or scrip">
+              </label>
               <button type="submit" class="btn btn-small">Search</button>
             </div>
             <div class="queue-filters">
