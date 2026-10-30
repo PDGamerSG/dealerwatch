@@ -22,7 +22,7 @@ export function MagneticButton({ children, className = "btn", ...rest }: Props) 
   };
 
   return (
-    <a ref={ref} className={className} onPointerMove={onMove} onPointerLeave={onLeave} data-cursor="hover" {...rest}>
+    <a ref={ref} className={className} onPointerMove={onMove} onPointerLeave={onLeave} {...rest}>
       {children}
     </a>
   );

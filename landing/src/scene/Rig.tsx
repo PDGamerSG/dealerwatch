@@ -9,6 +9,14 @@ export function Rig() {
   useEffect(() => {
     if (import.meta.env.DEV) (window as unknown as { __dw: unknown }).__dw = state;
   }, [state]);
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      scroll.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      scroll.pointer.y = -((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
   useFrame(({ camera }, dt) => {
     const px = scroll.pointer.x;
     const py = scroll.pointer.y;

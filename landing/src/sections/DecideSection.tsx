@@ -69,7 +69,6 @@ export function DecideSection() {
                     if (e.key === " " || e.key === "Enter") start();
                   }}
                   onKeyUp={stop}
-                  data-cursor-label={sealed ? "sealed" : "hold"}
                   aria-pressed={sealed}
                 >
                   <svg className="hold__ring" viewBox="0 0 36 36" aria-hidden>

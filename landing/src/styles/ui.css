@@ -182,67 +182,6 @@
   pointer-events: none;
 }
 
-/* ---------- cursor ---------- */
-
-.cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 90;
-  pointer-events: none;
-  mix-blend-mode: difference;
-}
-.cursor__dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 50%;
-  background: var(--paper);
-}
-.cursor__ring {
-  position: absolute;
-  width: 36px;
-  height: 36px;
-  margin: -18px 0 0 -18px;
-  border-radius: 50%;
-  border: 1px solid var(--paper-70);
-  display: grid;
-  place-items: center;
-  transition: width 0.35s var(--ease-out), height 0.35s var(--ease-out), margin 0.35s var(--ease-out), background 0.35s;
-}
-.cursor.is-hover .cursor__ring {
-  width: 64px;
-  height: 64px;
-  margin: -32px 0 0 -32px;
-  background: var(--paper-15);
-}
-.cursor__label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--paper);
-  opacity: 0;
-  transition: opacity 0.3s;
-  white-space: nowrap;
-}
-.cursor.is-label .cursor__label {
-  opacity: 1;
-}
-.cursor.is-label .cursor__ring {
-  width: 76px;
-  height: 76px;
-  margin: -38px 0 0 -38px;
-}
-.cursor.is-label .cursor__dot {
-  opacity: 0;
-}
-@media (hover: none), (pointer: coarse) {
-  .cursor {
-    display: none;
-  }
-}
-
 /* ---------- marquee ---------- */
 
 .marquee {

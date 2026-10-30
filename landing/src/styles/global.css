@@ -212,56 +212,6 @@ canvas {
   z-index: 1;
 }
 
-/* the ledger's red margin line, which also fills as a page progress gauge */
-.rule {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: var(--gutter);
-  width: 1px;
-  z-index: 30;
-  background: var(--stamp-40);
-  pointer-events: none;
-}
-.rule__fill {
-  position: absolute;
-  inset: 0;
-  background: var(--stamp);
-  transform-origin: top;
-  transform: scaleY(0);
-  box-shadow: 0 0 12px var(--stamp-40);
-}
-.rule__ticks {
-  position: absolute;
-  inset: 0;
-}
-.rule__tick {
-  position: absolute;
-  left: 0;
-  width: 6px;
-  height: 1px;
-  background: var(--paper-45);
-  transform: translateX(-3px);
-}
-.rule__tick span {
-  position: absolute;
-  left: 14px;
-  top: -0.65em;
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--paper-45);
-  white-space: nowrap;
-  transition: color 0.4s;
-}
-.rule__tick.is-active span {
-  color: var(--paper);
-}
-@media (max-width: 767px) {
-  .rule__ticks {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .grain {
     animation: none;

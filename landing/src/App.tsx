@@ -2,8 +2,6 @@ import { lazy, Suspense } from "react";
 import { SmoothScroll } from "./ui/SmoothScroll";
 import { Loader } from "./ui/Loader";
 import { Nav } from "./ui/Nav";
-import { Rule } from "./ui/Rule";
-import { Cursor } from "./ui/Cursor";
 import { Timecode } from "./ui/Timecode";
 import { LabelLayer } from "./ui/LabelLayer";
 import { Hero } from "./sections/Hero";
@@ -28,9 +26,7 @@ export function App() {
         <Scene />
       </Suspense>
       <LabelLayer />
-      <Rule />
       <Nav />
-      <Cursor />
       <Timecode />
       <main className="page">
         <Hero />

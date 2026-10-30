@@ -53,7 +53,7 @@ export function Close() {
           </div>
           <div className="cmd close__cmd">
             <span>{CMD}</span>
-            <button type="button" onClick={copy} data-cursor="hover">
+            <button type="button" onClick={copy}>
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
