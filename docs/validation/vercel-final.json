@@ -1,0 +1,72 @@
+{
+  "checked_at": "2026-10-30T06:49:41.882190+00:00",
+  "url": "https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app",
+  "read_only": true,
+  "status": "passed",
+  "checks": [
+    {
+      "name": "readiness",
+      "status": "passed"
+    },
+    {
+      "name": "health",
+      "status": "passed"
+    },
+    {
+      "name": "session_and_access",
+      "status": "passed",
+      "auth_required": true,
+      "authenticated": true
+    },
+    {
+      "name": "frontend_assets",
+      "status": "passed",
+      "assets": 2
+    },
+    {
+      "name": "queue",
+      "status": "passed",
+      "cases": 19
+    },
+    {
+      "name": "case_evidence",
+      "status": "passed"
+    },
+    {
+      "name": "evidence_export_digest",
+      "status": "passed",
+      "digest_verified": true
+    },
+    {
+      "name": "dataset_and_queue_exports",
+      "status": "passed",
+      "collections": 9,
+      "csv_cases": 19
+    },
+    {
+      "name": "ledger",
+      "status": "passed",
+      "entries": 98
+    },
+    {
+      "name": "stats_and_dashboard",
+      "status": "passed"
+    },
+    {
+      "name": "run_history",
+      "status": "passed",
+      "runs": 10
+    },
+    {
+      "name": "evaluation_case_links",
+      "status": "passed",
+      "links": 19
+    }
+  ],
+  "summary": {
+    "expected_cases": 19,
+    "cases": 19,
+    "passed": 12,
+    "failed": 0
+  }
+}

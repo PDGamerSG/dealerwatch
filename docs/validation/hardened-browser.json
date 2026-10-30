@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-10-30T06:51:13.445125+00:00",
+  "url": "https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app",
+  "status": "passed",
+  "checks": [
+    "Authentication required",
+    "Admin demo reset and tamper return 403",
+    "Reviewer permissions",
+    "19 cases",
+    "Native audio playback and transcript seek/highlight",
+    "Demo controls hidden",
+    "Sign out revokes session",
+    "No browser application errors"
+  ],
+  "audio_duration_seconds": 33.48
+}
