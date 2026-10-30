@@ -10,7 +10,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 24px;
-  padding: 18px var(--right) 18px var(--content);
+  padding: 16px var(--right) 16px var(--content);
   transition: transform 0.6s var(--ease-out), opacity 0.4s;
 }
 .nav.is-hidden {
@@ -20,21 +20,14 @@
 .nav__mark {
   display: inline-flex;
   align-items: baseline;
-  gap: 10px;
   font-weight: 780;
   font-variation-settings: "wdth" 112;
   letter-spacing: -0.02em;
-  font-size: 1.1rem;
-}
-.nav__mark small {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--paper-45);
+  font-size: 1.05rem;
 }
 .nav__links {
   display: flex;
-  gap: clamp(14px, 1.8vw, 28px);
+  gap: clamp(18px, 2.2vw, 36px);
   font-size: var(--step--1);
   color: var(--paper-45);
 }

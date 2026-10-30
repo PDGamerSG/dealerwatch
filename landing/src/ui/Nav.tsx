@@ -3,13 +3,11 @@ import { useScrollUI, type Station } from "../lib/scroll";
 import { useLenis } from "lenis/react";
 import { MagneticButton } from "./MagneticButton";
 
-const LINKS: { id: Station; label: string }[] = [
-  { id: "sandwich", label: "Detect" },
-  { id: "call", label: "Gather" },
-  { id: "link", label: "Link" },
-  { id: "chain", label: "Verify" },
-  { id: "ledger", label: "Record" },
-  { id: "decide", label: "Decide" },
+/** Three stops: the walkthrough, the numbers, the command. */
+const LINKS: { id: Station; label: string; covers: Station[] }[] = [
+  { id: "sandwich", label: "How it works", covers: ["gap", "sandwich", "call", "link", "chain", "ledger", "decide"] },
+  { id: "proof", label: "Proof", covers: ["proof"] },
+  { id: "close", label: "Run", covers: ["close"] },
 ];
 
 export const REPO_URL = "https://github.com/PDGamerSG/dealerwatch";
@@ -44,11 +42,11 @@ export function Nav() {
   return (
     <nav className={`nav${hidden ? " is-hidden" : ""}`} aria-label="Primary" style={{ opacity: ready ? undefined : 0 }}>
       <a className="nav__mark" href="#hero" onClick={go("hero")}>
-        DealerWatch <small>seed 7</small>
+        DealerWatch
       </a>
       <div className="nav__links">
         {LINKS.map((l) => (
-          <a key={l.id} href={`#${l.id}`} onClick={go(l.id)} className={active === l.id ? "is-active" : undefined}>
+          <a key={l.id} href={`#${l.id}`} onClick={go(l.id)} className={l.covers.includes(active) ? "is-active" : undefined}>
             {l.label}
           </a>
         ))}

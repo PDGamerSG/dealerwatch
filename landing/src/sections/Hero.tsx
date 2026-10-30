@@ -27,13 +27,6 @@ export function Hero() {
         <i />
         <span>Scroll to follow the tape</span>
       </div>
-      <div className="hero__meta" aria-hidden>
-        Front-running investigator
-        <br />
-        for mutual fund compliance
-        <br />
-        <b>Synthetic universe, seed 7</b>
-      </div>
 
       {ready && (
         <SplitHeading as="h1" className="display display--hero hero__title" immediate delay={0.1}>

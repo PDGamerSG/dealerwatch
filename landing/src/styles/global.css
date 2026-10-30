@@ -20,18 +20,17 @@
   /* width axis of Archivo, pushed wider by scroll velocity */
   --wdth: 100;
 
-  /* ledger geometry: red margin line, content begins just right of it */
-  --gutter: clamp(22px, 7vw, 120px);
-  --content: calc(var(--gutter) + clamp(18px, 2.4vw, 44px));
+  /* page margins: the ledger column starts a little in from the left edge */
+  --content: clamp(22px, 6vw, 104px);
   --right: clamp(20px, 5vw, 96px);
   --measure: 58ch;
 
-  --step--1: clamp(0.82rem, 0.78rem + 0.2vw, 0.94rem);
-  --step-0: clamp(1.02rem, 0.96rem + 0.3vw, 1.18rem);
-  --step-1: clamp(1.28rem, 1.1rem + 0.8vw, 1.8rem);
-  --step-2: clamp(1.9rem, 1.35rem + 2.4vw, 3.3rem);
-  --step-3: clamp(2.5rem, 1.4rem + 5vw, 5.8rem);
-  --step-4: clamp(3.2rem, 1rem + 9.6vw, 10.8rem);
+  --step--1: clamp(0.8rem, 0.76rem + 0.2vw, 0.9rem);
+  --step-0: clamp(0.96rem, 0.92rem + 0.2vw, 1.06rem);
+  --step-1: clamp(1.1rem, 0.98rem + 0.6vw, 1.45rem);
+  --step-2: clamp(1.6rem, 1.2rem + 1.8vw, 2.6rem);
+  --step-3: clamp(2rem, 1.2rem + 3.2vw, 4.2rem);
+  --step-4: clamp(2.6rem, 1rem + 6vw, 7rem);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);

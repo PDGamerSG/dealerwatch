@@ -42,7 +42,7 @@
 }
 .pin__copy .display--section,
 .chain__intro .display--section {
-  font-size: clamp(2.1rem, 1.1rem + 3.4vw, 4.3rem);
+  font-size: clamp(1.8rem, 1rem + 2.5vw, 3.4rem);
 }
 .pin__copy {
   display: grid;
@@ -133,7 +133,7 @@
 .hero__title {
   grid-row: 2;
   padding: 0 var(--right) 0 var(--content);
-  max-width: 14ch;
+  max-width: 13ch;
 }
 .hero__title .split-line:last-child {
   color: var(--paper);
@@ -156,20 +156,6 @@
   grid-row: 4;
   position: relative;
   z-index: 2;
-}
-.hero__meta {
-  position: absolute;
-  top: clamp(90px, 14vh, 160px);
-  right: var(--right);
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.75;
-  color: var(--paper-45);
-}
-.hero__meta b {
-  color: var(--paper);
-  font-weight: 500;
 }
 .hero__scroll {
   position: absolute;
@@ -201,9 +187,6 @@
   .hero__actions {
     justify-content: flex-start;
   }
-  .hero__meta {
-    display: none;
-  }
 }
 
 /* ---------- gap ---------- */
@@ -229,7 +212,7 @@
   gap: 14px;
 }
 .call .pin__copy .display--section {
-  font-size: clamp(2rem, 1rem + 3vw, 3.8rem);
+  font-size: clamp(1.7rem, 1rem + 2.1vw, 3rem);
 }
 .call .pin__view {
   padding-bottom: clamp(28px, 4vh, 48px);
