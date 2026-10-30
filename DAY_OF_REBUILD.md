@@ -24,7 +24,7 @@ The rehearsal proves the design works. On the day, rebuild the core in a **fresh
 | 14:30-17:00 | Grounded summary, ledger + tamper demo, eval harness, injection case | `pytest -q` green, EVAL.md generated |
 | 17:00-19:00 | UI polish, audio seek, link graph, real LLM path on (Ollama or provider), latency numbers | Demo path works twice in a row |
 | **19:00** | **Feature freeze** | Only fixes after this |
-| 19:00-21:00 | README, SUBMISSION.md, ARCHITECTURE, AI_TOOLS, deck | Repo shareable |
+| 19:00-21:00 | README, SUBMISSION.md, ARCHITECTURE, submission notices, deck | Repo shareable |
 | 21:00-22:00 | Record the 3-minute video, rehearse the pitch 3 times | Backup video saved locally |
 | 22:00-23:00 | Submit early (the portal has failed near deadlines before) | Confirmation screenshot |
 

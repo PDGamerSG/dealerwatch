@@ -14,6 +14,10 @@ function fixture() {
   writeFileSync(join(root, 'dealerwatch/web/index.html'), '<script src="/static/app.js"></script>');
   writeFileSync(join(root, 'dealerwatch/web/app.js'), 'console.info("DealerWatch");');
   writeFileSync(join(root, 'dealerwatch/web/style.css'), 'body { color: black; }');
+  writeFileSync(
+    join(root, 'dealerwatch/web/favicon.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
+  );
   mkdirSync(join(root, 'landing/dist/assets'), { recursive: true });
   writeFileSync(join(root, 'landing/dist/index.html'), '<div id="root"></div><script type="module" src="./assets/index.js"></script>');
   writeFileSync(join(root, 'landing/dist/assets/index.js'), 'console.info("landing");');

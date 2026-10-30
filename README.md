@@ -1,12 +1,39 @@
+<div align="center">
+
 # DealerWatch
 
-An end-to-end front-running investigator for a mutual fund compliance team. It connects order and trade patterns, dealer relationships, recorded-call evidence, grounded explanations, and human review. This repository is a **hackathon rehearsal using synthetic data**.
+### Evidence-grounded front-running investigations for fund compliance teams
 
-The backend uses FastAPI, SQLite, NetworkX and Python. The intentionally basic frontend uses HTML, CSS and JavaScript with no build step, CDN or external asset dependency; it shares the landing page's ink-and-paper palette and ships Archivo and IBM Plex Mono as self-hosted subsets under `dealerwatch/web/fonts`. The default demo requires no API keys or network connection after installation.
+[![CI](https://github.com/PDGamerSG/dealerwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/PDGamerSG/dealerwatch/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-3776ab)](https://www.python.org/)
+[![Frontend](https://img.shields.io/badge/frontend-Vite%20%2B%20React-646cff)](https://vite.dev/)
+[![Demo](https://img.shields.io/badge/demo-live-1f883d)](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/)
 
-## Start
+Detect trade sandwiches, connect calls to account relationships, and give a reviewer a case file they can defend.
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), clone the private repository using an account with access, then run:
+[Open the landing page](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/) · [Open the console](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/app) · [Read the demo script](docs/DEMO.md)
+
+</div>
+
+DealerWatch is a working hackathon prototype for investigating possible front-running around fund orders. It joins order and trade timing, account relationships, recorded-call transcripts, evidence clauses, and reviewer decisions in one workflow. The repository contains a FastAPI backend, a durable SQLite runtime, a basic static console, and a separate Vite landing page. The seeded dataset is synthetic and contains no customer records.
+
+## Why this project matters
+
+Compliance teams often have the right evidence in different systems. An order blotter shows the fund order, a trade feed shows activity around it, KYC systems show relationships, and call recordings contain the context. Joining those records by hand takes time and makes the final decision difficult to audit.
+
+DealerWatch turns that join into a repeatable case workflow. Deterministic rules identify candidate sandwiches. Relationship and call stages add context. A grounding check keeps generated text tied to evidence. A reviewer makes the final decision, and a hash-chained ledger records what happened.
+
+The application is designed for a demo and a controlled synthetic evaluation. It is not a claim about live-market accuracy.
+
+## Three steps to a case
+
+1. **Run the pipeline.** The seed-7 dataset produces 19 labelled cases with planted positive, review, and dismiss scenarios.
+2. **Open a case.** The queue shows the order timeline, linked accounts, call transcript, evidence chain, clauses, audio, and current recommendation.
+3. **Review and record.** A human can request information, approve escalation, or dismiss the case. The decision, revision, and audit event persist across reruns.
+
+## Quick start
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
 
 ```bash
 git clone https://github.com/PDGamerSG/dealerwatch.git
@@ -14,127 +41,140 @@ cd dealerwatch
 uv run --frozen python -m dealerwatch
 ```
 
-Open **http://127.0.0.1:8077**. The command installs locked dependencies, creates the seed-7 synthetic dataset if missing, validates it, investigates it on first startup, and serves the API and frontend. Existing data and reviews are preserved. Python 3.12 is selected by `.python-version`.
+Open <http://127.0.0.1:8077>. The first start creates the seed-7 synthetic data, validates it, investigates it, and serves the API and console. Existing runtime data and reviews are preserved.
 
-macOS/Linux convenience launcher, including optional `.env` loading:
-
-```bash
-./scripts/dev.sh
-```
-
-To add native synthetic speech on macOS or Windows and enable the ledger demonstration controls:
+To generate native synthetic speech and enable the explicit ledger demonstration controls:
 
 ```bash
 uv run --frozen python -m dealerwatch --audio --demo
 ```
 
-Audio is optional; transcript-based investigation works on every supported platform. macOS uses installed `say` voices and `afconvert`; Windows uses SAPI. The generated speech, names and accounts are fictional.
+Audio is optional. Replay transcripts and the complete investigation workflow work without external credentials or network access after dependencies are installed.
 
-If you use pip instead:
+## Hosted build
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-python -m pip install -r requirements.lock
-python -m dealerwatch
+The public landing page and console are served by Vercel. The persistent backend runs as one Docker worker on AWS so that SQLite databases, archived audio, imported datasets, and run history remain on disk.
+
+| Surface | Link |
+|---|---|
+| Landing page | [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/) |
+| Reviewer console | [dealerwatch-pallab-das-projects-d3f377fd.vercel.app/app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/app) |
+| Backend readiness | [3.107.131.107/api/ready](https://3.107.131.107/api/ready) |
+| Deployment guide | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+
+## What it does
+
+| Stage | Behavior |
+|---|---|
+| Detect | Uses indexed time windows to find same-side activity before a fund order and opposite-side activity after it. Repeat count, timing, and matched profit contribute to the candidate score. |
+| Gather | Finds dealer calls in the lookback window when the caller is connected to the trading account through declared relationships. |
+| Extract | Replays a stored transcript or calls the optional speech and language-model adapters. Extracted leak cues must cite real utterances and ground their numbers. |
+| Link | Builds a dealer-to-account graph from shared phone, email, bank, device, and declared relationship attributes. |
+| Verify | Checks a nine-link evidence chain covering the order, trades, profit, pattern, link path, call, cue, and applicable clause. |
+| Explain | Produces a short evidence-cited summary. A deterministic template replaces output that fails the grounding checks. |
+| Review | Lets a named reviewer request information, approve escalation, or dismiss a case. The application never escalates a case by itself. |
+| Record | Stores case snapshots, immutable audio references, run progress, revisions, decisions, exports, and a hash-chained audit ledger. |
+
+## How it works
+
+```text
+synthetic orders + trades + KYC links + call records
+                         │
+                         ▼
+                  indexed detector
+                         │
+           ┌─────────────┼─────────────┐
+           ▼             ▼             ▼
+       link graph    call window   price/profit
+           └─────────────┼─────────────┘
+                         ▼
+                 grounded evidence chain
+                         │
+                         ▼
+              reviewer queue and case file
+                         │
+                         ▼
+                 decision + audit ledger
 ```
 
-## Working features
+The backend is a single-tenant FastAPI service. SQLite stores the case, job, and ledger databases. The pipeline publishes a case and its audit event atomically, uses revisions for optimistic concurrency, and keeps review decisions when a case is rerun. The browser console talks to the documented API in [docs/API.md](docs/API.md).
 
-- Deterministic BUY/SELL sandwich detection with indexed time windows, matched-quantity profit and repeat-pattern scoring.
-- Dealer-to-account graph analysis using declared relationships and shared KYC attributes.
-- Call gathering, transcript replay or optional speech recognition, grounded leak-cue extraction, and citation-checked summaries.
-- Nine-link evidence verification. Complete evidence recommends escalation; partial evidence goes to review. **Only a human reviewer changes a case to ESCALATED.**
-- Searchable investigation queue, price/trade timeline, transcript and audio playback, evidence links, clauses, decision history, overview and run history.
-- Background investigations with stage/progress reporting, bounded concurrency, durable status and restart recovery.
-- Atomic case/audit updates, optimistic revisions, idempotent decision retries, immutable evidence/audio snapshots, and preserved reviews across reruns.
-- JSON dataset validation/import/export, CSV queue export, and versioned JSON evidence packages with SHA-256 integrity digests.
-- Optional administrator/reviewer authentication, expiring browser sessions, same-origin mutation checks, body limits and login throttling.
-- Hash-chain verification, explicitly enabled tamper/reset demonstrations, and evaluation isolated from live investigations.
+## Results on the seeded evaluation
 
-## Demo and measurements
+The labelled seed-7 universe contains 19 scenarios: 6 expected escalations, 10 reviews, and 3 dismissals. DealerWatch matched all 19 expected recommendations. Escalation precision, recall, and F1 were 1.000, 1.000, and 1.000. The trade-score baseline reached 0.500 precision, 1.000 recall, and 0.667 F1 because it escalated six unlinked repeated-pattern decoys.
 
-Seed 7 generates 40 fund orders, 2,558 trades, 60 accounts, 25 calls and 60,000 price bars. All **19 labelled scenarios** produce the expected recommendation: 6 ESCALATE, 10 REVIEW, 3 DISMISS. The six unlinked repeated-pattern decoys expose false escalations in the trade-score baseline.
+The indexed detector processed 100,000 trades and 1,000 orders in a 412 ms median benchmark on the recorded Mac environment, with the same 7,107 candidates as the previous scan. The benchmark excludes data generation, disk I/O, speech recognition, and language-model latency.
 
-| Synthetic evaluation | DealerWatch | Trade-score baseline |
-|---|---:|---:|
-| Escalation precision | 1.000 | 0.500 |
-| Escalation recall | 1.000 | 1.000 |
-| Escalation F1 | 1.000 | 0.667 |
-| All-label accuracy | 19/19 | 9/19 |
+Read the generated [EVAL.md](EVAL.md) and the fresh [validation record](docs/VALIDATION.md) for commands, environments, and limits.
 
-These are controlled synthetic results, not production accuracy estimates. See [EVAL.md](EVAL.md), [validation evidence](docs/VALIDATION.md), and the [three-minute demo](docs/DEMO.md).
+## Security and data handling
 
-On the recorded Mac benchmark, the indexed detector processed 100,000 trades and 1,000 orders in **412 ms median**, versus **6,271 ms** for the previous scan, with 7,107 identical candidates. This measures detection only, not hosted model or speech-service latency. Reproduce with:
+- The repository ships synthetic names, accounts, trades, calls, and prices only.
+- Transcript text is treated as untrusted data and is inserted into the DOM as text.
+- Grounding checks reject citations and numbers that do not exist in the evidence snapshot.
+- Partial evidence produces `REVIEW`; only a reviewer can change a case to `ESCALATED`.
+- State-changing requests use same-origin checks, body limits, expiring sessions, and optional administrator or reviewer tokens.
+- The ledger records a canonical payload hash and previous hash for every event.
+- API keys are read from environment variables and are never written to reports or the runtime database.
 
-```bash
-uv run python scripts/benchmark.py --orders 1000 --trades 100000 --repeat 3
-```
+## Known limits
 
-## Verify
+- The dataset is synthetic. Production use would need approved order, trade, KYC, and recording feeds.
+- The current link graph uses exact shared attributes. Fuzzy name and address matching is future work.
+- Rules and replay transcripts are tuned for the included English dealer-desk scenarios.
+- Optional OpenAI, Anthropic, Ollama, and Sarvam adapters have deterministic fallbacks. Their live quality and latency were not measured without credentials or a local model.
+- SQLite is intentionally deployed as one worker on persistent storage. The AWS deployment guide explains the backup and restart requirements.
+
+## Verify locally
 
 ```bash
 uv sync --frozen
-uv run pytest -q
-uv run ruff check .
+uv run --frozen pytest -m '' -q
+uv run --frozen ruff check .
 node --check dealerwatch/web/app.js
-uv run playwright install chromium
-uv run pytest -m browser -q
-uv run python -m dealerwatch --check
-uv run python -m dealerwatch.eval.harness --runtime runtime/evaluation-cli --md EVAL.md
+node --test scripts/test_vercel_build.mjs
+uv run --frozen python -m dealerwatch --check
+uv run --frozen python -m dealerwatch.eval.harness --runtime runtime/evaluation-cli --md EVAL.md
+cd landing
+npm ci
+npm run typecheck
+npm run build
 ```
 
-Python tests use temporary databases and no external services. Browser tests start isolated local servers and cover review, escalation, dismissal, reruns, imports/exports, ledger verification/tamper/restore, evaluation, authentication and mobile layout. CI runs Python tests on Linux 3.12/3.13, Chromium workflows, and a container build with HTTP and restart checks.
+The CI workflow repeats the Python 3.12 and 3.13 suites, the Chromium browser workflows, the Vercel output test, the container smoke test, and the landing-page typecheck/build.
 
-The evaluation runtime must be isolated. The harness refuses a live application runtime or existing review history. The demo's **Restore clean ledger** action intentionally clears cases and decisions and is available only with `DW_DEMO=1`; ordinary runs preserve history.
+## Repository map
 
-## Configuration and operation
+| Path | Purpose |
+|---|---|
+| `dealerwatch/` | FastAPI application, pipeline, persistence, API models, exports, and evaluation harness |
+| `toolkit/` | Generic ledger, provider adapters, ASR replay, and grounding helpers |
+| `dealerwatch/web/` | Basic static reviewer console and self-hosted fonts |
+| `landing/` | Vite and React marketing page with the 3D evidence-chain visual |
+| `data/` | Synthetic source data definitions and generated-data tooling |
+| `scripts/` | Vercel packaging, benchmark, container, deployment, and development helpers |
+| `tests/` | Unit, API, security, persistence, evaluation, and browser tests |
+| `docs/` | API contract, architecture, demo script, deployment runbook, and validation evidence |
 
-Copy `.env.example` to `.env` and launch with `./scripts/dev.sh`, or use `uv run --env-file .env python -m dealerwatch`. Raw `python`/`uvicorn` commands read process environment variables, not `.env` automatically.
+## Development and deployment
 
-| Setting | Default | Purpose |
-|---|---|---|
-| `DW_DATA` | `data/generated` | Source evidence directory |
-| `DW_RUNTIME` | `runtime` | Cases, ledger, archived audio, jobs, imported datasets and evaluation caches |
-| `DW_LLM` | `mock` | `mock`, `ollama`, `openai`, `anthropic` |
-| `DW_LLM_MODEL` | Provider default | Exact installed/available model name |
-| `DW_ASR` | `replay` | `replay` or `sarvam` |
-| `DW_DEMO` | `0` | Enables destructive ledger demonstration controls |
-| `DW_ADMIN_TOKEN`, `DW_REVIEWER_TOKEN` | Unset | Distinct operator access tokens; either enables authentication |
-| `DW_PUBLIC_ROLE` | Unset | `reviewer` lets anonymous visitors review cases while admin actions keep requiring the administrator token |
-| `DW_MAX_BODY_BYTES` | `33554432` | 32 MiB upload limit |
-
-Optional external providers retain deterministic fallbacks if unavailable. Hosted models need their own API keys; Sarvam needs `SARVAM_API_KEY`. The current local machine has no Ollama model installed, so live provider quality/latency is not part of the verified offline results.
-
-Run **one application worker per runtime directory**. Keep the case and ledger databases in SQLite rollback journal mode; attached transactions use SQLite's super-journal for atomic commits. Do not enable WAL for these two databases. Back up the complete runtime directory while the server is stopped, together with the original source dataset. Restore that complete set, then verify the ledger.
-
-Local mode without tokens grants administrator access and binds to loopback. For network use, configure distinct tokens, TLS, an appropriate reverse proxy, and `DW_COOKIE_SECURE=1`; add `DW_PUBLIC_ROLE=reviewer` only when the console should open to the public as a reviewer, as the hosted synthetic demo does. The application is a single-tenant hackathon system, not a production financial surveillance deployment.
-
-## Landing page
-
-`landing/` holds a standalone, scroll-driven marketing page for DealerWatch built with Vite, React Three Fiber and GSAP. It has no backend dependency and uses only synthetic figures. See [landing/README.md](landing/README.md). The hosted site serves it at [dealerwatch-pallab-das-projects-d3f377fd.vercel.app](https://dealerwatch-pallab-das-projects-d3f377fd.vercel.app/) with the reviewer console at `/app`.
-
-```bash
-cd landing && npm install && npm run dev
-```
-
-## Container
+Run the basic console with `./scripts/dev.sh`. Use `cd landing && npm install && npm run dev` when working on the landing page. The container path is:
 
 ```bash
 docker compose up --build
 ```
 
-Compose binds to loopback and keeps data in a named volume. The container runs as a non-root user with a readiness health check. The Linux ARM64 image passed startup, frontend/API, review, rerun, export, audit and restart-persistence checks. Reproduce the container check with:
+For a hosted build, set `DW_BACKEND_URL` in Vercel to the HTTPS AWS origin and keep the SQLite runtime on the persistent AWS host. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the exact environment variables, backup procedure, and read-only live checks.
 
-```bash
-docker build --tag dealerwatch:check .
-python3 scripts/check_container.py
-```
+## Submission package
 
-The check uses its own temporary container and volume, then removes both. See the [recorded result](docs/validation/container-smoke.json).
+The HackIn Drive 2026 material is kept in the repository so the team can review it before submitting:
 
-See [architecture](ARCHITECTURE.md), [API and data contracts](docs/API.md), [current handoff](HANDOFF.md), and the original [rehearsal contract](CONTRACT.md). The original hackathon preparation and day-of rebuild notes remain in the repository.
+- [Team details](TEAM.md)
+- [₹50,000 budget](BUDGET.md)
+- [Video script, pitch outline, and form copy](PITCH.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Current handoff](HANDOFF.md)
+- [Declared components](DECLARED_COMPONENTS.md)
 
-## Hosted deployment
-
-The [Vercel and AWS deployment guide](docs/DEPLOYMENT.md) describes the frontend proxy and a persistent single-worker backend. The repository includes Vercel build configuration, AWS container/HTTPS configuration, and reusable live HTTP/browser checks. Vercel functions must not host the SQLite runtime on temporary disk.
+The source repository is public. Do not commit `.env.local`, runtime databases, generated local data, provider keys, or deployment bypass tokens.

@@ -7,8 +7,8 @@ Environment: macOS 27.0.1 arm64, Apple M1 Max (10 logical CPUs), Python 3.12.14,
 | Check | Evidence |
 |---|---|
 | Original baseline | 637 tests passed before changes |
-| Complete Python + real browser suite | `uv run --frozen pytest -m '' -q`: 749 passed on Python 3.12.14; a fresh source-only copy with locked dependencies also passed all 749 on Python 3.13.15 |
-| Default Python suite | 747 tests; browser tests separately selected with `-m browser` |
+| Complete Python + real browser suite | `uv run --frozen pytest -m '' -q`: **803 passed** on Python 3.12.14; the CI matrix reruns the same suite on Python 3.13 |
+| Default Python suite | **801 passed, 2 deselected**; the two browser tests are selected separately with `-m browser` |
 | Static checks | `uv run --frozen ruff check .`, `node --check dealerwatch/web/app.js`, `git diff --check` |
 | Dependency reproducibility | Fresh temporary Python 3.12 environment installed only `requirements.lock`; seeded data validated and real FastAPI HTTP workflow returned 19 cases and a valid 98-entry ledger. Fresh Python 3.13 source-only installation passed CLI data validation and the complete 19-scenario evaluation |
 | Container | Compose validation, a clean Linux ARM64 image build, and `python3 scripts/check_container.py --image dealerwatch:release-check --output docs/validation/container-smoke.json` passed with Docker Engine 29.9.2 |
@@ -64,11 +64,11 @@ The built Linux ARM64 image ran as UID 10001 with all capabilities dropped and a
 
 ## Operation left available
 
-Start the application with `uv run --frozen python -m dealerwatch` at http://127.0.0.1:8077. Default startup keeps destructive demo controls off unless `--demo` or `DW_DEMO=1` is supplied. The release repository is [PDGamerSG/dealerwatch](https://github.com/PDGamerSG/dealerwatch) (private); the original rehearsal Git history is retained. The hosted handoff is documented in [DEPLOYMENT.md](DEPLOYMENT.md).
+Start the application with `uv run --frozen python -m dealerwatch` at http://127.0.0.1:8077. Default startup keeps destructive demo controls off unless `--demo` or `DW_DEMO=1` is supplied. The release repository is [PDGamerSG/dealerwatch](https://github.com/PDGamerSG/dealerwatch) (public); the original rehearsal Git history is retained. The hosted handoff is documented in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Vercel/AWS deployment
 
-The release changes passed **800 Python/browser tests**, two Node build-output tests, Ruff, JavaScript syntax and diff checks. GitHub Actions passed for Python 3.12/3.13, browser workflows, and container checks on commit `f7a501a`. The package inspection confirmed that local environment files, runtime databases and generated data were excluded. A new Linux ARM64 image passed real HTTP review, rerun, export, audit and restart-persistence checks.
+The current release candidate passed **803 Python/browser tests**, two Node build-output tests, Ruff, JavaScript syntax, the CLI data check, the evaluation harness, and the landing typecheck/build. The package inspection confirmed that local environment files, runtime databases and generated data were excluded. The existing Linux ARM64 image passed real HTTP review, rerun, export, audit and restart-persistence checks; the pushed commit must pass the same checks in GitHub Actions before release.
 
 The AWS Compose configuration passed validation for persistent host mounts, nonroot backend, one replica and secure cookies. Caddy 2.11.7 issued a publicly trusted short-lived certificate for the static IP. The live read-only checker passed all 12 checks through both AWS and Vercel: readiness, authenticated access, 19 cases, evidence and CSV/dataset exports, SHA-256 evidence integrity, 98-entry ledger verification, run history, dashboard totals, and evaluation links. Restarting the backend preserved the reviewed case, 9 completed runs, and the intact audit chain. Seven archived WAV recordings passed Vercel playback, format, and SHA-256 checks. The disposable `DW_DEMO=1` remote desktop/mobile workflows passed 2/2 tests; a final hardened reviewer workflow passed with demo mutations disabled.
 
