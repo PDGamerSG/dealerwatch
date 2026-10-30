@@ -109,6 +109,14 @@ Run **one application worker per runtime directory**. Keep the case and ledger d
 
 Local mode without tokens grants administrator access and binds to loopback. For network use, configure distinct tokens, TLS, an appropriate reverse proxy, and `DW_COOKIE_SECURE=1`. The application is a single-tenant hackathon system, not a production financial surveillance deployment.
 
+## Landing page
+
+`landing/` holds a standalone, scroll-driven marketing page for DealerWatch built with Vite, React Three Fiber and GSAP. It has no backend dependency and uses only synthetic figures. See [landing/README.md](landing/README.md).
+
+```bash
+cd landing && npm install && npm run dev
+```
+
 ## Container
 
 ```bash
